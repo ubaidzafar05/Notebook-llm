@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+from functools import lru_cache
+from uuid import UUID
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    environment: str = Field(default="development", alias="ENVIRONMENT")
+    app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
+    app_port: int = Field(default=8000, alias="APP_PORT")
+    ui_url: str = Field(default="http://localhost:3000", alias="UI_URL")
+
+    jwt_secret: str = Field(default="change-me", alias="JWT_SECRET")
+    jwt_access_expires_minutes: int = Field(default=30, alias="JWT_ACCESS_EXPIRES_MINUTES")
+    jwt_refresh_expires_minutes: int = Field(default=10080, alias="JWT_REFRESH_EXPIRES_MINUTES")
+    auth_refresh_cookie_name: str = Field(default="notebooklm_refresh", alias="AUTH_REFRESH_COOKIE_NAME")
+    auth_cookie_secure: bool = Field(default=False, alias="AUTH_COOKIE_SECURE")
+    auth_cookie_samesite: str = Field(default="lax", alias="AUTH_COOKIE_SAMESITE")
+
+    database_url: str = Field(
+        default="sqlite:///./notebooklm_dev.db",
+        alias="DATABASE_URL",
+    )
+    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    redis_key_prefix: str = Field(default="notebooklm", alias="REDIS_KEY_PREFIX")
+    rq_queue_name: str = Field(default="notebooklm-default", alias="RQ_QUEUE_NAME")
+    rq_strict_mode: bool = Field(default=True, alias="RQ_STRICT_MODE")
+    job_max_retries_ingestion: int = Field(default=2, alias="JOB_MAX_RETRIES_INGESTION")
+    job_max_retries_podcast: int = Field(default=2, alias="JOB_MAX_RETRIES_PODCAST")
+
+    milvus_uri: str = Field(default="http://localhost:19530", alias="MILVUS_URI")
+    milvus_collection: str = Field(default="notebooklm_chunks", alias="MILVUS_COLLECTION")
+
+    ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
+    ollama_chat_model: str = Field(default="qwen2.5:7b-instruct", alias="OLLAMA_CHAT_MODEL")
+    ollama_embed_model: str = Field(default="nomic-embed-text", alias="OLLAMA_EMBED_MODEL")
+
+    openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1",
+        alias="OPENROUTER_BASE_URL",
+    )
+    openrouter_model: str = Field(default="moonshotai/kimi-k2", alias="OPENROUTER_MODEL")
+    enable_cross_encoder_rerank: bool = Field(default=False, alias="ENABLE_CROSS_ENCODER_RERANK")
+    cross_encoder_model: str = Field(
+        default="cross-encoder/ms-marco-MiniLM-L-6-v2",
+        alias="CROSS_ENCODER_MODEL",
+    )
+
+    google_client_id: str = Field(default="", alias="GOOGLE_CLIENT_ID")
+    google_client_secret: str = Field(default="", alias="GOOGLE_CLIENT_SECRET")
+    google_redirect_uri: str = Field(
+        default="http://localhost:8000/api/v1/auth/google/callback",
+        alias="GOOGLE_REDIRECT_URI",
+    )
+
+    zep_api_key: str = Field(default="", alias="ZEP_API_KEY")
+    zep_project_id: str = Field(default="", alias="ZEP_PROJECT_ID")
+
+    assemblyai_api_key: str = Field(default="", alias="ASSEMBLYAI_API_KEY")
+    firecrawl_api_key: str = Field(default="", alias="FIRECRAWL_API_KEY")
+
+    enable_audio_parsing: bool = Field(default=True, alias="ENABLE_AUDIO_PARSING")
+    enable_youtube_parsing: bool = Field(default=True, alias="ENABLE_YOUTUBE_PARSING")
+    enable_web_scraping: bool = Field(default=True, alias="ENABLE_WEB_SCRAPING")
+
+    max_upload_bytes: int = Field(default=52428800, alias="MAX_UPLOAD_BYTES")
+    max_sources_per_user: int = Field(default=200, alias="MAX_SOURCES_PER_USER")
+    idempotency_ttl_seconds: int = Field(default=7200, alias="IDEMPOTENCY_TTL_SECONDS")
+    oauth_state_ttl_seconds: int = Field(default=600, alias="OAUTH_STATE_TTL_SECONDS")
+    oauth_exchange_code_ttl_seconds: int = Field(default=180, alias="OAUTH_EXCHANGE_CODE_TTL_SECONDS")
+    podcast_tts_provider: str = Field(default="kokoro", alias="PODCAST_TTS_PROVIDER")
+    kokoro_voice_host: str = Field(default="af_heart", alias="KOKORO_VOICE_HOST")
+    kokoro_voice_analyst: str = Field(default="am_adam", alias="KOKORO_VOICE_ANALYST")
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
+
+
+def reset_settings_cache() -> None:
+    get_settings.cache_clear()
+
+
+def validate_required_runtime_settings(settings: Settings) -> None:
+    if not settings.zep_api_key:
+        raise RuntimeError("ZEP_API_KEY is required")
+    if not settings.zep_project_id:
+        raise RuntimeError("ZEP_PROJECT_ID is required")
+    try:
+        UUID(settings.zep_project_id)
+    except ValueError as exc:
+        raise RuntimeError("ZEP_PROJECT_ID must be a valid UUID") from exc

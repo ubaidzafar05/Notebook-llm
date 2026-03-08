@@ -1,0 +1,267 @@
+.layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(300px, 360px);
+  gap: 16px;
+  padding: 16px;
+}
+
+.column {
+  min-height: calc(100vh - 32px);
+  border: 1px solid rgba(23, 34, 45, 0.1);
+  border-radius: 24px;
+  background: rgba(255, 251, 244, 0.88);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 60px rgba(24, 34, 43, 0.08);
+  overflow: hidden;
+}
+
+.panelHeader {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid rgba(23, 34, 45, 0.08);
+}
+
+.panelBody {
+  padding: 18px 20px 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 1.18rem;
+}
+
+.mutedText {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.92rem;
+}
+
+.section {
+  display: grid;
+  gap: 10px;
+}
+
+.label {
+  display: grid;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--color-muted);
+}
+
+.input,
+.textarea,
+.select,
+.button,
+.secondaryButton {
+  width: 100%;
+  border-radius: 16px;
+  font: inherit;
+}
+
+.input,
+.textarea,
+.select {
+  padding: 12px 14px;
+  border: 1px solid rgba(18, 54, 75, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-text);
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.button,
+.secondaryButton {
+  border: 0;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.button {
+  background: #12364b;
+  color: #fffdf8;
+  box-shadow: 0 14px 28px rgba(18, 54, 75, 0.16);
+}
+
+.secondaryButton {
+  background: #e6d0a4;
+  color: #2d241a;
+}
+
+.button:disabled,
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.scrollSection {
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.cardList {
+  display: grid;
+  gap: 10px;
+}
+
+.card,
+.cardActive {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(23, 34, 45, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  text-align: left;
+}
+
+.cardActive {
+  border-color: rgba(18, 54, 75, 0.24);
+  background: rgba(239, 247, 252, 0.96);
+}
+
+.cardTitle {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.cardMeta {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--color-muted);
+}
+
+.pillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill,
+.pillActive {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(18, 54, 75, 0.1);
+  background: rgba(255, 255, 255, 0.86);
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.pillActive {
+  background: #12364b;
+  color: #fffdf8;
+}
+
+.messageList {
+  display: grid;
+  gap: 16px;
+  max-height: calc(100vh - 360px);
+  overflow: auto;
+  padding-right: 8px;
+}
+
+.messageUser,
+.messageAssistant,
+.messageStreaming {
+  padding: 16px;
+  border-radius: 20px;
+  white-space: pre-wrap;
+}
+
+.messageUser {
+  background: rgba(18, 54, 75, 0.1);
+}
+
+.messageAssistant {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.messageStreaming {
+  background: rgba(230, 208, 164, 0.32);
+}
+
+.footerRow {
+  display: flex;
+  gap: 10px;
+}
+
+.tinyMeta {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.statusUp,
+.statusDegraded,
+.statusDown {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+}
+
+.statusUp::before,
+.statusDegraded::before,
+.statusDown::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.statusUp::before {
+  background: #2f8b57;
+}
+
+.statusDegraded::before {
+  background: #db9e21;
+}
+
+.statusDown::before {
+  background: #a62035;
+}
+
+.error {
+  margin: 0;
+  color: #a62035;
+}
+
+.emptyState {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(18, 54, 75, 0.04);
+  color: var(--color-muted);
+}
+
+@media (max-width: 1180px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .column {
+    min-height: auto;
+  }
+
+  .messageList {
+    max-height: none;
+  }
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "pdf-anchors",
+    "query": "Which page explains overlap chunking strategy",
+    "expected_chunk_ids": ["pdf-c1"],
+    "proposed_citation_chunk_ids": ["pdf-c1", "invalid-x"],
+    "candidates": [
+      {"chunk_id": "pdf-c1", "source_id": "s-pdf", "text": "Page 4 explains overlap chunking strategy with 100 token overlap and section-aware boundaries."},
+      {"chunk_id": "pdf-c2", "source_id": "s-pdf", "text": "Introduction and abstract for the notebook project."},
+      {"chunk_id": "misc-c1", "source_id": "s-misc", "text": "Podcast voice synthesis uses host and analyst roles."}
+    ]
+  },
+  {
+    "id": "web-firecrawl",
+    "query": "What section heading discusses scraping fallback behavior",
+    "expected_chunk_ids": ["web-c1"],
+    "proposed_citation_chunk_ids": ["web-c1"],
+    "candidates": [
+      {"chunk_id": "web-c1", "source_id": "s-web", "text": "Section: Scraping fallback behavior. Firecrawl preferred extraction, trafilatura fallback when unavailable."},
+      {"chunk_id": "web-c2", "source_id": "s-web", "text": "Section: Deployment checklist and startup health checks."},
+      {"chunk_id": "audio-c2", "source_id": "s-audio", "text": "Speaker diarization metadata and timestamps for utterances."}
+    ]
+  },
+  {
+    "id": "audio-timestamps",
+    "query": "Which timestamp mentions AssemblyAI speaker diarization",
+    "expected_chunk_ids": ["audio-c1"],
+    "proposed_citation_chunk_ids": ["audio-c1", "noise-c1"],
+    "candidates": [
+      {"chunk_id": "audio-c1", "source_id": "s-audio", "text": "At 00:02:10 the transcript mentions AssemblyAI speaker diarization and confidence scoring."},
+      {"chunk_id": "audio-c2", "source_id": "s-audio", "text": "At 00:05:55 the transcript summarizes podcast publishing steps."},
+      {"chunk_id": "noise-c1", "source_id": "s-noise", "text": "Random unrelated text with no diarization details."}
+    ]
+  },
+  {
+    "id": "youtube-subtitles",
+    "query": "How does YouTube subtitle preference work before audio fallback",
+    "expected_chunk_ids": ["yt-c1"],
+    "proposed_citation_chunk_ids": ["yt-c1"],
+    "candidates": [
+      {"chunk_id": "yt-c1", "source_id": "s-yt", "text": "YouTube ingestion prefers subtitle timestamps first, then audio transcription fallback if subtitles are missing."},
+      {"chunk_id": "yt-c2", "source_id": "s-yt", "text": "Video metadata: title, author, and duration fields."},
+      {"chunk_id": "pdf-c9", "source_id": "s-pdf", "text": "Vector database tuning notes."}
+    ]
+  },
+  {
+    "id": "milvus-retrieval",
+    "query": "What does Milvus store for semantic retrieval",
+    "expected_chunk_ids": ["vec-c1"],
+    "proposed_citation_chunk_ids": ["vec-c1", "vec-c2"],
+    "candidates": [
+      {"chunk_id": "vec-c1", "source_id": "s-vec", "text": "Milvus stores embedding vectors with citation metadata for semantic retrieval and filtering."},
+      {"chunk_id": "vec-c2", "source_id": "s-vec", "text": "Redis stores queue and auth state keys with TTL."},
+      {"chunk_id": "vec-c3", "source_id": "s-vec", "text": "Postgres stores notebook and chat relational records."}
+    ]
+  },
+  {
+    "id": "zep-memory",
+    "query": "How is Zep memory used during answer generation",
+    "expected_chunk_ids": ["mem-c1"],
+    "proposed_citation_chunk_ids": ["mem-c1", "wrong-c2"],
+    "candidates": [
+      {"chunk_id": "mem-c1", "source_id": "s-mem", "text": "Zep memory summary is injected into a separate prompt section and never cited as document evidence."},
+      {"chunk_id": "mem-c2", "source_id": "s-mem", "text": "Memory writes persist user and assistant turns after successful response."},
+      {"chunk_id": "wrong-c2", "source_id": "s-wrong", "text": "Unrelated statement about UI colors."}
+    ]
+  },
+  {
+    "id": "podcast-kokoro",
+    "query": "Which provider is mandatory for podcast TTS",
+    "expected_chunk_ids": ["tts-c1"],
+    "proposed_citation_chunk_ids": ["tts-c1"],
+    "candidates": [
+      {"chunk_id": "tts-c1", "source_id": "s-tts", "text": "Podcast synthesis is Kokoro-only with fixed host and analyst voices."},
+      {"chunk_id": "tts-c2", "source_id": "s-tts", "text": "Legacy pyttsx3 path removed from release runtime."},
+      {"chunk_id": "tts-c3", "source_id": "s-tts", "text": "FFmpeg merges WAV turns into final MP3 output."}
+    ]
+  },
+  {
+    "id": "oauth-redis",
+    "query": "Where is OAuth state stored and how consumed",
+    "expected_chunk_ids": ["auth-c1"],
+    "proposed_citation_chunk_ids": ["auth-c1", "auth-c9"],
+    "candidates": [
+      {"chunk_id": "auth-c1", "source_id": "s-auth", "text": "OAuth state and exchange codes are stored in Redis with TTL and consumed atomically via GETDEL."},
+      {"chunk_id": "auth-c2", "source_id": "s-auth", "text": "Refresh token revocation is namespaced in Redis using token hash keys."},
+      {"chunk_id": "auth-c9", "source_id": "s-auth", "text": "A short unrelated sentence."}
+    ]
+  }
+]

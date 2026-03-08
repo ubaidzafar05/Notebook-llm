@@ -1,0 +1,39 @@
+# Git and project folders
+.git
+.gitignore
+.github
+README.md
+task.md
+implementation_plan.md
+walkthrough.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Development artifacts
+.env
+.env.example
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Data and outputs
+data/
+outputs/
+specs/
+
+# macOS
+.DS_Store
+
+# UV
+uv.lock
