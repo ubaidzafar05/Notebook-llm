@@ -62,20 +62,6 @@ export function StudioPanel({ notebookId }: StudioPanelProps): JSX.Element {
           )}
         </section>
         <section className={styles.section}>
-          <p className={styles.eyebrow}>Dependencies</p>
-          <div className={styles.cardList}>
-            {Object.entries(dependencyQuery.data ?? {}).map(([name, item]) => (
-              <div key={name} className={styles.card}>
-                <p className={styles.cardTitle}>{name}</p>
-                <p className={item.status === "up" ? styles.statusUp : item.status === "degraded" ? styles.statusDegraded : styles.statusDown}>
-                  {item.status}
-                </p>
-                <p className={styles.cardMeta}>{item.detail}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-        <section className={styles.section}>
           <p className={styles.eyebrow}>Podcast Studio</p>
           <button className={styles.button} disabled={!sourceIds.length || createMutation.isPending} onClick={() => createMutation.mutate(sourceIds)} type="button">
             {createMutation.isPending ? "Queueing..." : "Generate Podcast"}
@@ -100,6 +86,20 @@ export function StudioPanel({ notebookId }: StudioPanelProps): JSX.Element {
                 </div>
               </div>
             )) ?? <div className={styles.emptyState}>No podcast jobs yet.</div>}
+          </div>
+        </section>
+        <section className={styles.section}>
+          <p className={styles.eyebrow}>Dependencies</p>
+          <div className={styles.cardList}>
+            {Object.entries(dependencyQuery.data ?? {}).map(([name, item]) => (
+              <div key={name} className={styles.card}>
+                <p className={styles.cardTitle}>{name}</p>
+                <p className={item.status === "up" ? styles.statusUp : item.status === "degraded" ? styles.statusDegraded : styles.statusDown}>
+                  {item.status}
+                </p>
+                <p className={styles.cardMeta}>{item.detail}</p>
+              </div>
+            ))}
           </div>
         </section>
       </div>
