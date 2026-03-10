@@ -4,6 +4,7 @@ import importlib
 from pathlib import Path
 from typing import Any
 
+from app.core.circuit_breaker import CircuitBreaker
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 from schemas.podcast_script import PodcastScript, PodcastTurn
@@ -21,13 +22,14 @@ class TtsService:
                 details={"provider": provider},
             )
 
-    def synthesize_script(self, script: PodcastScript, output_dir: Path) -> list[Path]:
+    @CircuitBreaker(name="kokoro_tts", failure_threshold=2, recovery_timeout=120, exceptions=(AppError, Exception))
+    def synthesize_script(self, script: PodcastScript, output_dir: Path, voice_label: str | None = None) -> list[Path]:
         engine = _load_kokoro_engine()
         output_dir.mkdir(parents=True, exist_ok=True)
         tracks: list[Path] = []
         for idx, turn in enumerate(script.turns, start=1):
             wav_path = output_dir / f"line_{idx:03d}.wav"
-            _synthesize_turn(engine=engine, turn=turn, output_path=wav_path)
+            _synthesize_turn(engine=engine, turn=turn, output_path=wav_path, voice_label=voice_label)
             tracks.append(wav_path)
         return tracks
 
@@ -51,8 +53,8 @@ def _load_kokoro_engine() -> Any:
     return module.KPipeline(lang_code="a")
 
 
-def _synthesize_turn(*, engine: Any, turn: PodcastTurn, output_path: Path) -> None:
-    voice = _voice_for_speaker(turn.speaker)
+def _synthesize_turn(*, engine: Any, turn: PodcastTurn, output_path: Path, voice_label: str | None) -> None:
+    voice = _voice_for_speaker(turn.speaker, voice_label)
     try:
         generator = engine(turn.text, voice=voice)
         first = next(generator)
@@ -76,8 +78,13 @@ def _synthesize_turn(*, engine: Any, turn: PodcastTurn, output_path: Path) -> No
     sf.write(file=str(output_path), data=audio, samplerate=24000)
 
 
-def _voice_for_speaker(speaker: str) -> str:
+def _voice_for_speaker(speaker: str, voice_label: str | None) -> str:
     settings = get_settings()
+    normalized_label = (voice_label or "").strip().lower()
+    if normalized_label == "verse analyst":
+        return settings.kokoro_voice_analyst
+    if normalized_label == "nova narrator":
+        return settings.kokoro_voice_host
     if speaker == "HOST":
         return settings.kokoro_voice_host
     return settings.kokoro_voice_analyst

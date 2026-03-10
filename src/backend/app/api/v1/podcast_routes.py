@@ -31,12 +31,18 @@ def create_podcast(
     settings = get_settings()
     service = PodcastService(db)
     notebook_id = _resolved_notebook_id(db, user.id, None)
-    podcast_id = service.create_job(user_id=user.id, notebook_id=notebook_id, source_ids=payload.source_ids)
+    podcast_id = service.create_job(
+        user_id=user.id,
+        notebook_id=notebook_id,
+        source_ids=payload.source_ids,
+        voice_label=payload.voice,
+    )
     dispatch = TaskQueue.enqueue(
         process_podcast_job,
         user.id,
         podcast_id,
         payload.title,
+        payload.voice,
         retry_max=settings.job_max_retries_podcast,
     )
     return success_response(
@@ -114,6 +120,7 @@ def retry_podcast(
         user_id=user.id,
         notebook_id=original.notebook_id or _resolved_notebook_id(db, user.id, None),
         source_ids=original.source_ids_json,
+        voice_label=payload.voice or original.voice_label,
         retried_from_podcast_id=podcast_id,
     )
     dispatch = TaskQueue.enqueue(
@@ -121,6 +128,7 @@ def retry_podcast(
         user.id,
         new_podcast_id,
         payload.title,
+        payload.voice or original.voice_label,
         retry_max=settings.job_max_retries_podcast,
     )
     return success_response(
@@ -148,12 +156,18 @@ def create_notebook_podcast(
     resolved_notebook_id = _resolved_notebook_id(db, user.id, notebook_id)
     settings = get_settings()
     service = PodcastService(db)
-    podcast_id = service.create_job(user_id=user.id, notebook_id=resolved_notebook_id, source_ids=payload.source_ids)
+    podcast_id = service.create_job(
+        user_id=user.id,
+        notebook_id=resolved_notebook_id,
+        source_ids=payload.source_ids,
+        voice_label=payload.voice,
+    )
     dispatch = TaskQueue.enqueue(
         process_podcast_job,
         user.id,
         podcast_id,
         payload.title,
+        payload.voice,
         retry_max=settings.job_max_retries_podcast,
     )
     return success_response(
@@ -233,6 +247,7 @@ def retry_notebook_podcast(
         user_id=user.id,
         notebook_id=resolved_notebook_id,
         source_ids=original.source_ids_json,
+        voice_label=payload.voice or original.voice_label,
         retried_from_podcast_id=podcast_id,
     )
     dispatch = TaskQueue.enqueue(
@@ -240,6 +255,7 @@ def retry_notebook_podcast(
         user.id,
         new_podcast_id,
         payload.title,
+        payload.voice or original.voice_label,
         retry_max=settings.job_max_retries_podcast,
     )
     return success_response(
@@ -270,7 +286,9 @@ def _serialize_podcast(podcast: PodcastJob) -> dict[str, object]:
         "id": podcast.id,
         "notebook_id": podcast.notebook_id,
         "source_ids": podcast.source_ids_json,
+        "voice": podcast.voice_label,
         "status": podcast.status,
+        "script": podcast.script,
         "output_path": podcast.output_path,
         "duration_ms": podcast.duration_ms,
         "error_message": podcast.error_message,

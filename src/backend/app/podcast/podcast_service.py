@@ -26,20 +26,24 @@ class PodcastService:
         user_id: str,
         notebook_id: str,
         source_ids: list[str],
+        voice_label: str | None = None,
         retried_from_podcast_id: str | None = None,
     ) -> str:
         podcast = self.repo.create(
             user_id=user_id,
             notebook_id=notebook_id,
             source_ids=source_ids,
+            voice_label=voice_label,
             retried_from_podcast_id=retried_from_podcast_id,
         )
         return podcast.id
 
-    def process_job(self, user_id: str, podcast_id: str, title: str) -> None:
+    def process_job(self, user_id: str, podcast_id: str, title: str, voice_label: str | None = None) -> None:
         podcast = self.repo.get_for_user(podcast_id=podcast_id, user_id=user_id)
         if podcast is None:
             return
+        if voice_label is not None and voice_label.strip():
+            podcast.voice_label = voice_label.strip()
         podcast.status = PodcastStatus.PROCESSING.value
         self.repo.save(podcast)
 
@@ -56,7 +60,11 @@ class PodcastService:
             )
         context = "\n\n".join(chunk.text for chunk in chunks)
         script, _ = self.script_generator.generate(title=title, source_context=context)
-        tracks = self.tts_service.synthesize_script(script=script, output_dir=Path("outputs/podcasts") / podcast.id)
+        tracks = self.tts_service.synthesize_script(
+            script=script,
+            output_dir=Path("outputs/podcasts") / podcast.id,
+            voice_label=podcast.voice_label,
+        )
         output_path = Path("outputs/podcasts") / f"{podcast.id}.mp3"
         duration_ms = self.mixer.merge_tracks(tracks=tracks, output_path=output_path)
 

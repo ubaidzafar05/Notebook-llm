@@ -208,6 +208,7 @@ class PodcastJob(Base):
         nullable=True,
     )
     source_ids_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    voice_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default=PodcastStatus.QUEUED.value)
     script: Mapped[str | None] = mapped_column(Text, nullable=True)
     output_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)

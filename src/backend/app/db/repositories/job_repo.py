@@ -41,6 +41,23 @@ class JobRepository:
         stmt = select(JobRecord).where(JobRecord.id == job_id, JobRecord.user_id == user_id)
         return self.db.scalar(stmt)
 
+    def list_for_user(
+        self,
+        *,
+        user_id: str,
+        job_type: str | None = None,
+        limit: int = 500,
+    ) -> list[JobRecord]:
+        stmt = (
+            select(JobRecord)
+            .where(JobRecord.user_id == user_id)
+            .order_by(JobRecord.created_at.desc())
+            .limit(limit)
+        )
+        if job_type is not None:
+            stmt = stmt.where(JobRecord.job_type == job_type)
+        return list(self.db.scalars(stmt).all())
+
     def get_for_notebook(self, job_id: str, user_id: str, notebook_id: str) -> JobRecord | None:
         stmt = select(JobRecord).where(
             JobRecord.id == job_id,
@@ -48,6 +65,24 @@ class JobRepository:
             JobRecord.notebook_id == notebook_id,
         )
         return self.db.scalar(stmt)
+
+    def list_for_notebook(
+        self,
+        *,
+        user_id: str,
+        notebook_id: str,
+        job_type: str | None = None,
+        limit: int = 200,
+    ) -> list[JobRecord]:
+        stmt = (
+            select(JobRecord)
+            .where(JobRecord.user_id == user_id, JobRecord.notebook_id == notebook_id)
+            .order_by(JobRecord.created_at.desc())
+            .limit(limit)
+        )
+        if job_type is not None:
+            stmt = stmt.where(JobRecord.job_type == job_type)
+        return list(self.db.scalars(stmt).all())
 
     def update_status(
         self,
@@ -121,12 +156,14 @@ class PodcastRepository:
         user_id: str,
         notebook_id: str,
         source_ids: list[str],
+        voice_label: str | None = None,
         retried_from_podcast_id: str | None = None,
     ) -> PodcastJob:
         podcast = PodcastJob(
             user_id=user_id,
             notebook_id=notebook_id,
             source_ids_json=source_ids,
+            voice_label=voice_label,
             retried_from_podcast_id=retried_from_podcast_id,
         )
         self.db.add(podcast)
