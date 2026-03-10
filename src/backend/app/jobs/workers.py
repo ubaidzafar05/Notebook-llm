@@ -89,11 +89,11 @@ def process_ingestion_job(user_id: str, job_id: str, source_id: str) -> None:
         db.close()
 
 
-def process_podcast_job(user_id: str, podcast_id: str, title: str) -> None:
+def process_podcast_job(user_id: str, podcast_id: str, title: str, voice_label: str | None = None) -> None:
     db = SessionLocal()
     try:
         service = PodcastService(db)
-        service.process_job(user_id=user_id, podcast_id=podcast_id, title=title)
+        service.process_job(user_id=user_id, podcast_id=podcast_id, title=title, voice_label=voice_label)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Podcast worker failed podcast_id=%s", podcast_id)
         service = PodcastService(db)

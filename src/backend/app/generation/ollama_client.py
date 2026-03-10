@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import requests
 
+from app.core.circuit_breaker import CircuitBreaker
 from app.core.config import get_settings
 
 
@@ -9,6 +10,7 @@ class OllamaClient:
     def __init__(self) -> None:
         self.settings = get_settings()
 
+    @CircuitBreaker(name="ollama_generate", failure_threshold=3, recovery_timeout=30, exceptions=(requests.RequestException,))
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         payload = {
             "model": self.settings.ollama_chat_model,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import requests
 
+from app.core.circuit_breaker import CircuitBreaker
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 
@@ -10,6 +11,7 @@ class OpenRouterClient:
     def __init__(self) -> None:
         self.settings = get_settings()
 
+    @CircuitBreaker(name="openrouter_generate", failure_threshold=3, recovery_timeout=30, exceptions=(requests.RequestException,))
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         if not self.settings.openrouter_api_key:
             raise AppError(code="OPENROUTER_NOT_CONFIGURED", message="OpenRouter API key missing", status_code=503)
