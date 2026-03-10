@@ -1,54 +1,96 @@
-import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
-import { useEffect, type ReactNode } from "react";
-import { AppHomePage } from "../pages/AppHomePage";
-import { AuthCallbackPage } from "../pages/AuthCallbackPage";
-import { LoginPage } from "../pages/LoginPage";
-import { NotebookPage } from "../pages/NotebookPage";
-import { useAuthStore } from "../state/auth-store";
+import { useEffect } from "react";
+import { Navigate, Outlet, RouterProvider, createBrowserRouter, useLocation, useNavigate } from "react-router-dom";
+import { useAuthSessionBootstrap } from "@/hooks/use-auth-session";
+import { authSelectors, useAuthStore } from "@/store/use-auth-store";
+import { AuthCallbackPage } from "@/pages/AuthCallbackPage";
+import { LoginPage } from "@/pages/LoginPage";
+import { NotebooksPage } from "@/pages/NotebooksPage";
+import { RegisterPage } from "@/pages/RegisterPage";
+import { SourceDetailPage } from "@/pages/SourceDetailPage";
+import { WorkspacePage } from "@/pages/WorkspacePage";
 
-export const router = createBrowserRouter([
-  { path: "/login", element: <LoginPage /> },
-  { path: "/auth/callback", element: <AuthCallbackPage /> },
+const router = createBrowserRouter([
   {
-    path: "/app",
-    element: (
-      <RequireAuth>
-        <AppHomePage />
-      </RequireAuth>
-    ),
+    path: "/",
+    element: <RootRedirect />
   },
   {
-    path: "/notebooks/:notebookId",
-    element: (
-      <RequireAuth>
-        <NotebookPage />
-      </RequireAuth>
-    ),
+    path: "/auth",
+    element: <PublicOnlyRoute />,
+    children: [
+      { path: "login", element: <LoginPage /> },
+      { path: "register", element: <RegisterPage /> },
+      { path: "callback", element: <AuthCallbackPage /> }
+    ]
   },
-  { path: "*", element: <Navigate to="/app" replace /> },
+  {
+    path: "/",
+    element: <ProtectedRoute />,
+    children: [
+      { path: "notebooks", element: <NotebooksPage /> },
+      { path: "notebooks/:notebookId", element: <WorkspacePage /> },
+      { path: "notebooks/:notebookId/sources/:sourceId", element: <SourceDetailPage /> }
+    ]
+  },
+  {
+    path: "*",
+    element: <Navigate replace to="/" />
+  }
 ]);
 
-function RequireAuth({ children }: { children: ReactNode }): JSX.Element {
-  const location = useLocation();
-  const bootstrapped = useAuthStore((state) => state.bootstrapped);
-  const status = useAuthStore((state) => state.status);
-  const restoreSession = useAuthStore((state) => state.restoreSession);
-
-  useEffect(() => {
-    if (!bootstrapped) {
-      void restoreSession();
-    }
-  }, [bootstrapped, restoreSession]);
-
-  if (!bootstrapped || status === "loading") {
-    return <div className="app-loader">Loading workspace...</div>;
-  }
-  if (status !== "authenticated") {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-  return <OutletWrapper>{children}</OutletWrapper>;
+export function AppRouter(): JSX.Element {
+  return <RouterProvider router={router} />;
 }
 
-function OutletWrapper({ children }: { children: ReactNode }): JSX.Element {
-  return <>{children ?? <Outlet />}</>;
+function RootRedirect(): JSX.Element {
+  const { ready } = useAuthSessionBootstrap();
+  const isAuthenticated = useAuthStore(authSelectors.isAuthenticated);
+  if (!ready) {
+    return <RouteLoadingScreen />;
+  }
+  return <Navigate replace to={isAuthenticated ? "/notebooks" : "/auth/login"} />;
+}
+
+function PublicOnlyRoute(): JSX.Element {
+  const { ready } = useAuthSessionBootstrap();
+  const isAuthenticated = useAuthStore(authSelectors.isAuthenticated);
+  if (!ready) {
+    return <RouteLoadingScreen />;
+  }
+  if (isAuthenticated) {
+    return <Navigate replace to="/notebooks" />;
+  }
+  return <Outlet />;
+}
+
+function ProtectedRoute(): JSX.Element {
+  const { ready } = useAuthSessionBootstrap();
+  const accessToken = useAuthStore(authSelectors.accessToken);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (ready || accessToken) {
+      return;
+    }
+    void navigate("/auth/login", { replace: true, state: { from: location.pathname } });
+  }, [accessToken, location.pathname, navigate, ready]);
+
+  if (!ready) {
+    return <RouteLoadingScreen />;
+  }
+  if (!accessToken) {
+    return <Navigate replace state={{ from: location.pathname }} to="/auth/login" />;
+  }
+  return <Outlet />;
+}
+
+function RouteLoadingScreen(): JSX.Element {
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+      <section className="rounded-[1.8rem] border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] px-6 py-5 text-sm text-[color:var(--text-muted)] shadow-soft-card">
+        Initializing notebook session...
+      </section>
+    </main>
+  );
 }
