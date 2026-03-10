@@ -6,6 +6,7 @@ from schemas.citation import Citation
 
 from app.generation.llm_router import LlmRouter
 from app.generation.prompt_loader import load_prompt
+from app.retrieval.semantic_cache import SemanticCacheService
 from app.vector_store.collections import VectorRecord
 
 
@@ -13,6 +14,7 @@ class ResponseGenerator:
     def __init__(self) -> None:
         self.router = LlmRouter()
         self.answer_prompt = load_prompt("answer_system_prompt.md")
+        self.cache = SemanticCacheService()
 
     def generate_answer(
         self,
@@ -21,6 +23,14 @@ class ResponseGenerator:
         citations: list[Citation],
         memory_context: str = "",
     ) -> tuple[str, dict[str, str], Literal["low", "medium", "high"]]:
+        chunk_ids = [item.chunk_id for item in contexts]
+        cached = self.cache.get_cached_answer(question=question, chunk_ids=chunk_ids)
+        if cached is not None:
+            cached_text, raw_citations = cached
+            recovered_citations = [Citation(**c) for c in raw_citations]
+            confidence_val = _compute_confidence(citations=recovered_citations, contexts=contexts)
+            return cached_text, {"provider": "cache", "fallback_used": "false"}, confidence_val
+
         support_score = _support_score(question=question, contexts=contexts, citations=citations)
         if support_score < 0.18:
             return (
@@ -39,8 +49,18 @@ class ResponseGenerator:
             "Answer using only the context."
         )
         answer_text, model_info = self.router.generate(system_prompt=self.answer_prompt, user_prompt=user_prompt)
+        final_answer = _append_missing_citations(answer_text=answer_text, citations=citations)
         confidence = _compute_confidence(citations=citations, contexts=contexts)
-        return _append_missing_citations(answer_text=answer_text, citations=citations), model_info, confidence
+
+        # Write to cache asynchronously or fire-and-forget
+        self.cache.store_answer(
+            question=question,
+            chunk_ids=chunk_ids,
+            answer=final_answer,
+            citations=[c.model_dump() for c in citations]
+        )
+
+        return final_answer, model_info, confidence
 
 
 def _append_missing_citations(answer_text: str, citations: list[Citation]) -> str:

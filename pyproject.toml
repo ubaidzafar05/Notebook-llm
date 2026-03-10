@@ -33,7 +33,9 @@ dependencies = [
   "requests==2.32.3",
   "pydub==0.25.1",
   "soundfile==0.13.1",
-  "kokoro==0.9.4"
+  "kokoro==0.9.4",
+  "fastapi-limiter==0.1.6",
+  "pyrate-limiter==2.10.0",
 ]
 
 [project.optional-dependencies]

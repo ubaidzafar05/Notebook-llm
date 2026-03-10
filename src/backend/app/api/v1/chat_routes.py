@@ -6,6 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
+from app.api.dependencies import rate_limit_dependency
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import AuthenticatedUser, get_current_user
@@ -28,7 +29,7 @@ from schemas.chat import ChatMessageRequest, CreateSessionRequest
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 
 
-@router.post("/chat/sessions")
+@router.post("/chat/sessions", dependencies=[rate_limit_dependency(times=5, seconds=60)])
 def create_session(
     payload: CreateSessionRequest,
     request: Request,
@@ -69,7 +70,7 @@ def list_sessions(
     return success_response(data=data, request_id=request_id)
 
 
-@router.post("/chat/sessions/{session_id}/messages")
+@router.post("/chat/sessions/{session_id}/messages", dependencies=[rate_limit_dependency(times=10, seconds=60)])
 def send_message(
     session_id: str,
     payload: ChatMessageRequest,
@@ -174,7 +175,7 @@ def list_messages(
     return success_response(data=data, request_id=request_id)
 
 
-@router.post("/notebooks/{notebook_id}/chat/sessions")
+@router.post("/notebooks/{notebook_id}/chat/sessions", dependencies=[rate_limit_dependency(times=5, seconds=60)])
 def create_notebook_session(
     notebook_id: str,
     payload: CreateSessionRequest,
@@ -218,7 +219,7 @@ def list_notebook_sessions(
     return success_response(data=data, request_id=request_id)
 
 
-@router.post("/notebooks/{notebook_id}/chat/sessions/{session_id}/messages")
+@router.post("/notebooks/{notebook_id}/chat/sessions/{session_id}/messages", dependencies=[rate_limit_dependency(times=10, seconds=60)])
 def send_notebook_message(
     notebook_id: str,
     session_id: str,

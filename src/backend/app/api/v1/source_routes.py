@@ -5,13 +5,15 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, Header, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
+from app.api.dependencies import rate_limit_dependency
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import AuthenticatedUser, get_current_user
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.core.response_envelope import error_response, success_response
-from app.db.models import SourceType
+from app.db.models import JobRecord, Source, SourceType
+from app.db.repositories.job_repo import JobRepository
 from app.db.repositories.notebook_repo import NotebookRepository
 from app.db.repositories.source_repo import ChunkRepository, SourceRepository
 from app.db.session import get_db
@@ -27,7 +29,7 @@ from schemas.source import SourceCreateUrlRequest
 router = APIRouter(prefix="/api/v1", tags=["sources"])
 
 
-@router.post("/sources/upload")
+@router.post("/sources/upload", dependencies=[rate_limit_dependency(times=5, seconds=60)])
 def upload_source(
     request: Request,
     file: UploadFile = File(...),
@@ -121,7 +123,7 @@ def upload_source(
     return success_response(data=data, request_id=request_id, status_code=202)
 
 
-@router.post("/sources/url")
+@router.post("/sources/url", dependencies=[rate_limit_dependency(times=5, seconds=60)])
 def ingest_url_source(
     payload: SourceCreateUrlRequest,
     request: Request,
@@ -200,21 +202,12 @@ def list_sources(
 ) -> JSONResponse:
     request_id = getattr(request.state, "request_id", "")
     sources = SourceRepository(db).list_for_user(user_id=user.id)
-    data = [
-        {
-            "id": src.id,
-            "name": src.name,
-            "source_type": src.source_type,
-            "status": src.status,
-            "path_or_url": src.path_or_url,
-            "metadata": src.metadata_json,
-        }
-        for src in sources
-    ]
+    jobs_by_source = _latest_ingestion_jobs_by_source(JobRepository(db).list_for_user(user_id=user.id, job_type="ingestion", limit=500))
+    data = [_serialize_source(source=src, ingestion_job=jobs_by_source.get(src.id)) for src in sources]
     return success_response(data=data, request_id=request_id)
 
 
-@router.post("/notebooks/{notebook_id}/sources/upload")
+@router.post("/notebooks/{notebook_id}/sources/upload", dependencies=[rate_limit_dependency(times=5, seconds=60)])
 def upload_source_for_notebook(
     notebook_id: str,
     request: Request,
@@ -233,7 +226,7 @@ def upload_source_for_notebook(
     )
 
 
-@router.post("/notebooks/{notebook_id}/sources/url")
+@router.post("/notebooks/{notebook_id}/sources/url", dependencies=[rate_limit_dependency(times=5, seconds=60)])
 def ingest_url_for_notebook(
     notebook_id: str,
     payload: SourceCreateUrlRequest,
@@ -263,18 +256,15 @@ def list_notebook_sources(
     if _notebook_for_user(db, notebook_id, user.id) is None:
         return error_response(code="NOT_FOUND", message="Notebook not found", request_id=request_id, status_code=404)
     sources = SourceRepository(db).list_for_notebook(user_id=user.id, notebook_id=notebook_id)
-    data = [
-        {
-            "id": src.id,
-            "notebook_id": src.notebook_id,
-            "name": src.name,
-            "source_type": src.source_type,
-            "status": src.status,
-            "path_or_url": src.path_or_url,
-            "metadata": src.metadata_json,
-        }
-        for src in sources
-    ]
+    jobs_by_source = _latest_ingestion_jobs_by_source(
+        JobRepository(db).list_for_notebook(
+            user_id=user.id,
+            notebook_id=notebook_id,
+            job_type="ingestion",
+            limit=500,
+        )
+    )
+    data = [_serialize_source(source=src, ingestion_job=jobs_by_source.get(src.id)) for src in sources]
     return success_response(data=data, request_id=request_id)
 
 
@@ -289,14 +279,8 @@ def get_source(
     source = SourceRepository(db).get_by_id_for_user(source_id=source_id, user_id=user.id)
     if source is None:
         return error_response(code="NOT_FOUND", message="Source not found", request_id=request_id, status_code=404)
-    data = {
-        "id": source.id,
-        "name": source.name,
-        "source_type": source.source_type,
-        "status": source.status,
-        "path_or_url": source.path_or_url,
-        "metadata": source.metadata_json,
-    }
+    jobs = JobRepository(db).list_for_user(user_id=user.id, job_type="ingestion", limit=500)
+    data = _serialize_source(source=source, ingestion_job=_latest_ingestion_jobs_by_source(jobs).get(source.id))
     return success_response(data=data, request_id=request_id)
 
 
@@ -312,15 +296,13 @@ def get_notebook_source(
     source = SourceRepository(db).get_by_id_for_notebook(source_id=source_id, user_id=user.id, notebook_id=notebook_id)
     if source is None:
         return error_response(code="NOT_FOUND", message="Source not found", request_id=request_id, status_code=404)
-    data = {
-        "id": source.id,
-        "notebook_id": source.notebook_id,
-        "name": source.name,
-        "source_type": source.source_type,
-        "status": source.status,
-        "path_or_url": source.path_or_url,
-        "metadata": source.metadata_json,
-    }
+    jobs = JobRepository(db).list_for_notebook(
+        user_id=user.id,
+        notebook_id=notebook_id,
+        job_type="ingestion",
+        limit=200,
+    )
+    data = _serialize_source(source=source, ingestion_job=_latest_ingestion_jobs_by_source(jobs).get(source.id))
     return success_response(data=data, request_id=request_id)
 
 
@@ -526,6 +508,55 @@ def cancel_job(
         request_id=request_id,
         status_code=409,
     )
+
+
+def _latest_ingestion_jobs_by_source(jobs: list[JobRecord]) -> dict[str, JobRecord]:
+    mapping: dict[str, JobRecord] = {}
+    for job in jobs:
+        source_id = job.payload_json.get("source_id")
+        if not isinstance(source_id, str) or not source_id:
+            continue
+        if source_id not in mapping:
+            mapping[source_id] = job
+    return mapping
+
+
+def _serialize_job(job: JobRecord) -> dict[str, Any]:
+    return {
+        "id": job.id,
+        "status": job.status,
+        "job_type": job.job_type,
+        "progress": job.progress,
+        "retry_count": job.retry_count,
+        "max_retries": job.max_retries,
+        "queue_job_id": job.queue_job_id,
+        "queue_name": job.queue_name,
+        "dead_lettered": job.dead_lettered,
+        "failure_code": job.failure_code,
+        "failure_detail": job.error_message,
+        "cancel_requested": job.cancel_requested,
+        "started_at": job.started_at.isoformat() if job.started_at else None,
+        "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+        "result": job.result_json,
+        "error_message": job.error_message,
+    }
+
+
+def _serialize_source(*, source: Source, ingestion_job: JobRecord | None) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "id": source.id,
+        "notebook_id": source.notebook_id,
+        "name": source.name,
+        "source_type": source.source_type,
+        "status": source.status,
+        "path_or_url": source.path_or_url,
+        "metadata": source.metadata_json,
+        "created_at": source.created_at.isoformat(),
+        "ingestion_job": None,
+    }
+    if ingestion_job is not None:
+        payload["ingestion_job"] = _serialize_job(ingestion_job)
+    return payload
 
 
 def _vector_store_from_request(request: Request) -> VectorStoreClient:

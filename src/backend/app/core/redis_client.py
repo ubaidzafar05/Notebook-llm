@@ -4,12 +4,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import redis.asyncio as aioredis
 from redis import Redis
 
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 
 _test_redis_singleton: _InMemoryRedis | None = None
+_test_async_redis_singleton: _InMemoryAsyncRedis | None = None
 
 
 def get_redis_client() -> Any:
@@ -19,6 +21,21 @@ def get_redis_client() -> Any:
     try:
         client = Redis.from_url(settings.redis_url, decode_responses=True)
         client.ping()
+        return client
+    except Exception as exc:  # noqa: BLE001
+        raise AppError(
+            code="REDIS_UNAVAILABLE",
+            message="Redis dependency is unavailable",
+            status_code=503,
+        ) from exc
+
+
+def get_async_redis_client() -> Any:
+    settings = get_settings()
+    if settings.environment == "test":
+        return _get_test_async_redis()
+    try:
+        client = aioredis.from_url(settings.redis_url, decode_responses=True)
         return client
     except Exception as exc:  # noqa: BLE001
         raise AppError(
@@ -55,6 +72,13 @@ def _get_test_redis() -> Any:
     if _test_redis_singleton is None:
         _test_redis_singleton = _InMemoryRedis()
     return _test_redis_singleton
+
+
+def _get_test_async_redis() -> Any:
+    global _test_async_redis_singleton
+    if _test_async_redis_singleton is None:
+        _test_async_redis_singleton = _InMemoryAsyncRedis()
+    return _test_async_redis_singleton
 
 
 @dataclass(slots=True)
@@ -129,3 +153,60 @@ class _InMemoryRedis:
 
     def pipeline(self, transaction: bool = True) -> _MemoryPipeline:
         return _MemoryPipeline(self)
+
+
+class _InMemoryAsyncRedis:
+    def __init__(self) -> None:
+        self.rows: dict[str, _MemoryValue] = {}
+
+    async def ping(self) -> bool:
+        return True
+
+    async def setex(self, key: str, ttl_seconds: int, value: str) -> bool:
+        expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
+        self.rows[key] = _MemoryValue(value=value, expires_at=expires_at)
+        return True
+
+    async def get(self, key: str) -> str | None:
+        row = self.rows.get(key)
+        if row is None:
+            return None
+        if row.expires_at is not None and row.expires_at <= datetime.now(UTC):
+            self.rows.pop(key, None)
+            return None
+        return row.value
+
+    async def getdel(self, key: str) -> str | None:
+        value = await self.get(key)
+        self.rows.pop(key, None)
+        return value
+
+    async def exists(self, key: str) -> int:
+        return 1 if (await self.get(key)) is not None else 0
+
+    async def delete(self, key: str) -> int:
+        existed = 1 if key in self.rows else 0
+        self.rows.pop(key, None)
+        return existed
+
+    async def script_load(self, script: str) -> str:
+        return "mock_lua_sha"
+
+    async def evalsha(self, sha: str, numkeys: int, *keys_and_args: Any) -> int:
+        return 0
+
+    def pipeline(self, transaction: bool = True) -> Any:
+        class AsyncPipeline:
+            def __init__(self, store: _InMemoryAsyncRedis) -> None:
+                self.store = store
+            async def __aenter__(self) -> AsyncPipeline:
+                return self
+            async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+                pass
+            def get(self, key: str) -> None:
+                pass
+            def delete(self, key: str) -> None:
+                pass
+            async def execute(self) -> tuple[str | None, int]:
+                return None, 0
+        return AsyncPipeline(self)

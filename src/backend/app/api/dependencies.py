@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request, Response
+from fastapi_limiter.depends import RateLimiter
 from sqlalchemy.orm import Session
 
 from app.auth.jwt_service import JwtService
@@ -34,3 +35,18 @@ def get_current_user(
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
     return AuthenticatedUser(id=user.id, email=user.email)
+
+
+async def _rate_limit_guard(request: Request, response: Response, limiter: RateLimiter) -> None:
+    if not getattr(request.app.state, "rate_limiter_ready", False):
+        return
+    await limiter(request, response)
+
+
+def rate_limit_dependency(times: int, seconds: int) -> Depends:
+    limiter = RateLimiter(times=times, seconds=seconds)
+
+    async def dependency(request: Request, response: Response) -> None:
+        await _rate_limit_guard(request, response, limiter)
+
+    return Depends(dependency)
