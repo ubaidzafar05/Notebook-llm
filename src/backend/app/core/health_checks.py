@@ -40,7 +40,6 @@ def collect_dependency_health(
     statuses["redis"] = _check_redis()
     statuses["milvus"] = _check_milvus(vector_store=vector_store)
     statuses["ollama"] = _check_http_service(path="/api/tags", service_name="ollama")
-    statuses["openrouter"] = _check_openrouter()
     statuses["zep"] = _check_zep()
     statuses["provider_gate"] = _check_provider_gate(statuses)
     return statuses
@@ -118,52 +117,6 @@ def _check_http_service(path: str, service_name: Literal["ollama"]) -> Dependenc
         return DependencyStatus(state="down", detail=f"{service_name} check failed: {exc}", latency_ms=None)
 
 
-def _check_openrouter() -> DependencyStatus:
-    settings = get_settings()
-    if settings.environment == "test":
-        return DependencyStatus(state="skipped", detail="OpenRouter check skipped in test environment", latency_ms=None)
-    if not settings.openrouter_api_key:
-        return DependencyStatus(
-            state="skipped",
-            detail="OpenRouter API key not configured",
-            latency_ms=None,
-        )
-
-    start = perf_counter()
-    try:
-        response = requests.get(
-            f"{settings.openrouter_base_url}/models",
-            headers={"Authorization": f"Bearer {settings.openrouter_api_key}"},
-            timeout=4,
-        )
-        latency_ms = int((perf_counter() - start) * 1000)
-        if response.status_code == 200:
-            return DependencyStatus(
-                state="up",
-                detail="OpenRouter reachable",
-                latency_ms=latency_ms,
-            )
-        if response.status_code in {401, 403}:
-            return DependencyStatus(
-                state="degraded",
-                detail=f"OpenRouter reachable but auth failed ({response.status_code})",
-                latency_ms=latency_ms,
-            )
-        if response.status_code < 500:
-            return DependencyStatus(
-                state="degraded",
-                detail=f"OpenRouter returned {response.status_code}",
-                latency_ms=latency_ms,
-            )
-        return DependencyStatus(
-            state="down",
-            detail=f"OpenRouter returned {response.status_code}",
-            latency_ms=latency_ms,
-        )
-    except Exception as exc:  # noqa: BLE001
-        return DependencyStatus(state="down", detail=f"OpenRouter check failed: {exc}", latency_ms=None)
-
-
 def _check_zep() -> DependencyStatus:
     settings = get_settings()
     if not settings.zep_api_key:
@@ -213,12 +166,13 @@ def _check_zep() -> DependencyStatus:
 
 
 def _check_provider_gate(statuses: dict[str, DependencyStatus]) -> DependencyStatus:
-    provider_names = ("ollama", "openrouter")
-    if any(statuses[name].state == "up" for name in provider_names):
-        healthy = [name for name in provider_names if statuses[name].state == "up"]
-        return DependencyStatus(state="up", detail=f"Providers available: {', '.join(healthy)}", latency_ms=None)
+    if statuses["ollama"].state == "up":
+        return DependencyStatus(state="up", detail="Provider available: ollama", latency_ms=None)
     settings = get_settings()
-    if settings.environment == "test" and any(statuses[name].state == "skipped" for name in provider_names):
+    if settings.environment == "test" and statuses["ollama"].state == "skipped":
         return DependencyStatus(state="up", detail="Provider checks skipped in test environment", latency_ms=None)
-    failing = [f"{name}={statuses[name].state}" for name in provider_names]
-    return DependencyStatus(state="down", detail=f"No generation provider available ({', '.join(failing)})", latency_ms=None)
+    return DependencyStatus(
+        state="down",
+        detail=f"No generation provider available (ollama={statuses['ollama'].state})",
+        latency_ms=None,
+    )

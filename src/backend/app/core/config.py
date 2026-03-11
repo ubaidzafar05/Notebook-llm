@@ -37,15 +37,9 @@ class Settings(BaseSettings):
     milvus_collection: str = Field(default="notebooklm_chunks", alias="MILVUS_COLLECTION")
 
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
-    ollama_chat_model: str = Field(default="qwen2.5:7b-instruct", alias="OLLAMA_CHAT_MODEL")
+    ollama_chat_model: str = Field(default="qwen3:8b", alias="OLLAMA_CHAT_MODEL")
     ollama_embed_model: str = Field(default="nomic-embed-text", alias="OLLAMA_EMBED_MODEL")
 
-    openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
-    openrouter_base_url: str = Field(
-        default="https://openrouter.ai/api/v1",
-        alias="OPENROUTER_BASE_URL",
-    )
-    openrouter_model: str = Field(default="moonshotai/kimi-k2", alias="OPENROUTER_MODEL")
     enable_cross_encoder_rerank: bool = Field(default=False, alias="ENABLE_CROSS_ENCODER_RERANK")
     cross_encoder_model: str = Field(
         default="cross-encoder/ms-marco-MiniLM-L-6-v2",
@@ -77,6 +71,8 @@ class Settings(BaseSettings):
     podcast_tts_provider: str = Field(default="kokoro", alias="PODCAST_TTS_PROVIDER")
     kokoro_voice_host: str = Field(default="af_heart", alias="KOKORO_VOICE_HOST")
     kokoro_voice_analyst: str = Field(default="am_adam", alias="KOKORO_VOICE_ANALYST")
+    usage_cost_per_1k_prompt: float = Field(default=0.0, alias="USAGE_COST_PER_1K_PROMPT")
+    usage_cost_per_1k_response: float = Field(default=0.0, alias="USAGE_COST_PER_1K_RESPONSE")
 
 
 @lru_cache(maxsize=1)

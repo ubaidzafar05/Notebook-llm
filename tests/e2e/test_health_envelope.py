@@ -22,7 +22,7 @@ def test_dependency_health_endpoint_shape(client: TestClient) -> None:
     payload = response.json()
     assert set(payload.keys()) == {"data", "error", "meta"}
     assert payload["error"] is None
-    for dependency in ("postgres", "redis", "milvus", "ollama", "openrouter", "zep", "provider_gate"):
+    for dependency in ("postgres", "redis", "milvus", "ollama", "zep", "provider_gate"):
         assert dependency in payload["data"]
         assert payload["data"][dependency]["status"] in {"up", "down", "degraded", "skipped"}
 
