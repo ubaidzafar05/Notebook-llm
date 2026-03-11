@@ -1,32 +1,45 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterator
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from app.api.dependencies import rate_limit_dependency
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import AuthenticatedUser, get_current_user
 from app.core.response_envelope import error_response, success_response
+from app.core.token_estimate import estimate_tokens
+from app.export.chat_exporter import (
+    ChatExportService,
+    ExportChunkRecord,
+    ExportContext,
+    ExportSourceRecord,
+)
 from app.db.repositories.chat_repo import ChatRepository
 from app.db.repositories.notebook_repo import NotebookRepository
 from app.db.repositories.source_repo import ChunkRepository, SourceRepository
+from app.db.repositories.usage_repo import NotebookUsageRepository
+from app.db.models import ChatMessage
 from app.db.session import get_db
 from app.embeddings.embedding_service import EmbeddingService
 from app.generation.response_generator import ResponseGenerator
 from app.memory.memory_service import MemoryService
+from app.memory.session_summary import SessionSummaryService
 from app.retrieval.citation_builder import build_citations
 from app.retrieval.citation_guard import filter_citations_by_chunk_ids
+from app.retrieval.citation_scoring import score_citations
+from app.retrieval.hybrid_retriever import HybridRetriever
 from app.retrieval.reranker import rerank
-from app.retrieval.retriever import Retriever
 from app.vector_store.collections import VectorRecord
 from app.vector_store.milvus_client import VectorStoreClient
 from schemas.chat import ChatMessageRequest, CreateSessionRequest
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/chat/sessions", dependencies=[rate_limit_dependency(times=5, seconds=60)])
@@ -64,6 +77,8 @@ def list_sessions(
             "title": session.title,
             "created_at": session.created_at.isoformat(),
             "updated_at": session.updated_at.isoformat(),
+            "summary": session.summary,
+            "summary_updated_at": session.summary_updated_at.isoformat() if session.summary_updated_at else None,
         }
         for session in sessions
     ]
@@ -87,20 +102,19 @@ def send_message(
     chat_repo.add_message(session=session, role="user", content=payload.message, citations=[], model_info={})
 
     vector_store = _vector_store_from_request(request)
-    retriever = Retriever(embedding_service=EmbeddingService(), vector_store=vector_store)
     notebook_id = session.notebook_id or _resolved_notebook_id(db, user.id, None)
-    candidates = retriever.retrieve(user_id=user.id, notebook_id=notebook_id, query=payload.message)
     chunk_repo = ChunkRepository(db)
-    candidates = _merge_candidates(
-        candidates,
-        _lexical_candidates_from_chunks(
-            chunk_repo=chunk_repo,
-            user_id=user.id,
-            notebook_id=notebook_id,
-            query=payload.message,
-            limit=6,
-        ),
+    retriever = HybridRetriever(
+        embedding_service=EmbeddingService(),
+        vector_store=vector_store,
+        chunk_repo=chunk_repo,
     )
+    try:
+        hybrid = retriever.retrieve(user_id=user.id, notebook_id=notebook_id, query=payload.message)
+        candidates = hybrid.records
+    except Exception:  # noqa: BLE001
+        return error_response(code="RETRIEVAL_FAILED", message="Retrieval failed", request_id=request_id, status_code=500)
+
     filtered_candidates = _filter_candidates(candidates=candidates, source_ids=payload.source_ids)
     if not filtered_candidates:
         filtered_candidates = _fallback_candidates_from_chunks(
@@ -122,15 +136,22 @@ def send_message(
         citations=citations,
         valid_chunk_ids={item.chunk_id for item in reranked},
     )
+    citations = score_citations(question=payload.message, records=reranked, citations=citations)
 
     memory_service = MemoryService(db)
-    memory_summary, _ = memory_service.summarize_session(user_id=user.id, session_id=session.id)
-    answer_text, model_info, confidence = ResponseGenerator().generate_answer(
-        question=payload.message,
-        contexts=reranked,
-        citations=citations,
-        memory_context=memory_summary,
-    )
+    try:
+        memory_summary, _ = memory_service.summarize_session(user_id=user.id, session_id=session.id)
+    except Exception:  # noqa: BLE001
+        memory_summary = ""
+    try:
+        answer_text, model_info, confidence = ResponseGenerator().generate_answer(
+            question=payload.message,
+            contexts=reranked,
+            citations=citations,
+            memory_context=memory_summary,
+        )
+    except Exception:  # noqa: BLE001
+        return error_response(code="GENERATION_FAILED", message="Answer generation failed", request_id=request_id, status_code=500)
     model_info["confidence"] = confidence
     chat_repo.add_message(
         session=session,
@@ -140,8 +161,21 @@ def send_message(
         model_info=model_info,
     )
 
-    memory_service.store_message(user_id=user.id, session_id=session.id, role="user", content=payload.message)
-    memory_service.store_message(user_id=user.id, session_id=session.id, role="assistant", content=answer_text)
+    try:
+        memory_service.store_message(user_id=user.id, session_id=session.id, role="user", content=payload.message)
+        memory_service.store_message(user_id=user.id, session_id=session.id, role="assistant", content=answer_text)
+    except Exception:  # noqa: BLE001
+        logger.exception("Memory store failed session_id=%s", session.id)
+    try:
+        SessionSummaryService(db).maybe_update(user_id=user.id, session_id=session.id)
+    except Exception:  # noqa: BLE001
+        logger.exception("Session summary update failed session_id=%s", session.id)
+    _update_usage_stats(
+        db=db,
+        notebook_id=notebook_id,
+        prompt_text=payload.message,
+        response_text=answer_text,
+    )
 
     stream = _stream_answer(
         answer_text=answer_text,
@@ -213,6 +247,8 @@ def list_notebook_sessions(
             "title": session.title,
             "created_at": session.created_at.isoformat(),
             "updated_at": session.updated_at.isoformat(),
+            "summary": session.summary,
+            "summary_updated_at": session.summary_updated_at.isoformat() if session.summary_updated_at else None,
         }
         for session in sessions
     ]
@@ -266,12 +302,192 @@ def list_notebook_messages(
     return success_response(data=data, request_id=request_id)
 
 
+@router.get("/notebooks/{notebook_id}/chat/search")
+def search_notebook_messages(
+    notebook_id: str,
+    request: Request,
+    q: str = Query(..., min_length=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    request_id = getattr(request.state, "request_id", "")
+    resolved_notebook_id = _resolved_notebook_id(db, user.id, notebook_id)
+    messages = ChatRepository(db).search_messages_for_notebook(
+        user_id=user.id,
+        notebook_id=resolved_notebook_id,
+        query=q,
+        limit=limit,
+    )
+    data = [
+        {
+            "id": message.id,
+            "session_id": message.session_id,
+            "role": message.role,
+            "content": message.content,
+            "created_at": message.created_at.isoformat(),
+        }
+        for message in messages
+    ]
+    return success_response(data=data, request_id=request_id)
+
+
+@router.get("/notebooks/{notebook_id}/chat/sessions/{session_id}/export")
+def export_session(
+    notebook_id: str,
+    session_id: str,
+    request: Request,
+    format: str = Query(default="md"),
+    top_k: int | None = Query(default=None, ge=1, le=50),
+    similarity_threshold: float | None = Query(default=None, ge=0.0, le=1.0),
+    model: str | None = Query(default=None, max_length=64),
+    memory_enabled: bool | None = Query(default=None),
+    attached_sources: str | None = Query(default=None, max_length=2000),
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    request_id = getattr(request.state, "request_id", "")
+    resolved_notebook_id = _resolved_notebook_id(db, user.id, notebook_id)
+    session = ChatRepository(db).get_session_for_notebook(
+        user_id=user.id,
+        notebook_id=resolved_notebook_id,
+        session_id=session_id,
+    )
+    if session is None:
+        return error_response(code="NOT_FOUND", message="Session not found", request_id=request_id, status_code=404)
+    notebook = NotebookRepository(db).get_for_user(resolved_notebook_id, user.id)
+    if notebook is None:
+        return error_response(code="NOT_FOUND", message="Notebook not found", request_id=request_id, status_code=404)
+    messages = ChatRepository(db).list_messages_for_notebook(
+        user_id=user.id,
+        notebook_id=resolved_notebook_id,
+        session_id=session_id,
+    )
+    exporter = ChatExportService()
+    context = _build_export_context(
+        attached_sources=attached_sources,
+        top_k=top_k,
+        similarity_threshold=similarity_threshold,
+        model=model,
+        memory_enabled=memory_enabled,
+    )
+    sources, chunks = _load_export_sources_and_chunks(
+        db=db,
+        user_id=user.id,
+        notebook_id=resolved_notebook_id,
+        messages=messages,
+        context=context,
+    )
+    markdown_text = exporter.render_markdown(
+        session=session,
+        notebook=notebook,
+        messages=messages,
+        sources=sources,
+        chunks=chunks,
+        context=context,
+    )
+    if format == "md":
+        headers = {"Content-Disposition": f"attachment; filename={session.title or 'session'}.md"}
+        return Response(content=markdown_text, media_type="text/markdown", headers=headers)
+    if format == "pdf":
+        try:
+            pdf_bytes = exporter.render_pdf(markdown_text)
+            headers = {"Content-Disposition": f"attachment; filename={session.title or 'session'}.pdf"}
+            return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("PDF export failed", extra={"session_id": session_id, "notebook_id": resolved_notebook_id})
+            return error_response(code="PDF_EXPORT_FAILED", message=str(exc), request_id=request_id, status_code=500)
+    return error_response(code="INVALID_FORMAT", message="Unsupported export format", request_id=request_id, status_code=400)
+
+
 
 def _filter_candidates(candidates: list[VectorRecord], source_ids: list[str]) -> list[VectorRecord]:
     if not source_ids:
         return candidates
     source_set = set(source_ids)
     return [candidate for candidate in candidates if candidate.source_id in source_set]
+
+
+def _build_export_context(
+    *,
+    attached_sources: str | None,
+    top_k: int | None,
+    similarity_threshold: float | None,
+    model: str | None,
+    memory_enabled: bool | None,
+) -> ExportContext:
+    attached_ids = _parse_attached_sources(attached_sources)
+    return ExportContext(
+        attached_source_ids=attached_ids,
+        top_k=top_k,
+        similarity_threshold=similarity_threshold,
+        model=model,
+        memory_enabled=memory_enabled,
+    )
+
+
+def _parse_attached_sources(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _load_export_sources_and_chunks(
+    *,
+    db: Session,
+    user_id: str,
+    notebook_id: str,
+    messages: list[ChatMessage],
+    context: ExportContext,
+) -> tuple[dict[str, ExportSourceRecord], dict[str, ExportChunkRecord]]:
+    citation_source_ids, citation_chunk_ids = _collect_citation_ids(messages)
+    source_ids = sorted(set(citation_source_ids).union(context.attached_source_ids))
+    sources = SourceRepository(db).list_by_ids_for_notebook(
+        user_id=user_id,
+        notebook_id=notebook_id,
+        source_ids=source_ids,
+    )
+    source_map = {
+        source.id: ExportSourceRecord(
+            id=source.id,
+            title=source.name,
+            source_type=source.source_type,
+            status=source.status,
+            path_or_url=source.path_or_url,
+            metadata=source.metadata_json or {},
+        )
+        for source in sources
+    }
+    chunks = ChunkRepository(db).list_by_ids(
+        user_id=user_id,
+        notebook_id=notebook_id,
+        chunk_ids=sorted(citation_chunk_ids),
+    )
+    chunk_map = {
+        chunk.id: ExportChunkRecord(
+            id=chunk.id,
+            source_id=chunk.source_id,
+            chunk_index=chunk.chunk_index,
+            text=chunk.text,
+            citation=chunk.citation_json or {},
+        )
+        for chunk in chunks
+    }
+    return source_map, chunk_map
+
+
+def _collect_citation_ids(messages: list[ChatMessage]) -> tuple[set[str], set[str]]:
+    source_ids: set[str] = set()
+    chunk_ids: set[str] = set()
+    for message in messages:
+        for citation in message.citations_json:
+            source_id = citation.get("source_id")
+            chunk_id = citation.get("chunk_id")
+            if isinstance(source_id, str) and source_id:
+                source_ids.add(source_id)
+            if isinstance(chunk_id, str) and chunk_id:
+                chunk_ids.add(chunk_id)
+    return source_ids, chunk_ids
 
 
 def _fallback_candidates_from_chunks(
@@ -301,37 +517,6 @@ def _fallback_candidates_from_chunks(
             )
         )
     return candidates
-
-
-def _lexical_candidates_from_chunks(
-    *,
-    chunk_repo: ChunkRepository,
-    user_id: str,
-    notebook_id: str,
-    query: str,
-    limit: int,
-) -> list[VectorRecord]:
-    rows = chunk_repo.lexical_candidates(user_id=user_id, notebook_id=notebook_id, query=query, limit=limit)
-    return [
-        VectorRecord(
-            chunk_id=chunk.id,
-            source_id=chunk.source_id,
-            user_id=chunk.user_id,
-            notebook_id=chunk.notebook_id or notebook_id,
-            text=chunk.text,
-            vector=[],
-            metadata=chunk.citation_json,
-        )
-        for chunk in rows
-    ]
-
-
-def _merge_candidates(primary: list[VectorRecord], secondary: list[VectorRecord]) -> list[VectorRecord]:
-    merged: dict[str, VectorRecord] = {record.chunk_id: record for record in primary}
-    for record in secondary:
-        merged.setdefault(record.chunk_id, record)
-    return list(merged.values())
-
 
 
 def _stream_answer(
@@ -368,3 +553,23 @@ def _resolved_notebook_id(db: Session, user_id: str, notebook_id: str | None) ->
     if notebook is None:
         return repo.ensure_default_for_user(user_id).id
     return notebook.id
+
+
+def _update_usage_stats(*, db: Session, notebook_id: str, prompt_text: str, response_text: str) -> None:
+    from app.core.config import get_settings
+
+    prompt_tokens = estimate_tokens(prompt_text)
+    response_tokens = estimate_tokens(response_text)
+    settings = get_settings()
+    cost = (prompt_tokens / 1000 * settings.usage_cost_per_1k_prompt) + (
+        response_tokens / 1000 * settings.usage_cost_per_1k_response
+    )
+    try:
+        NotebookUsageRepository(db).increment_messages(
+            notebook_id=notebook_id,
+            prompt_tokens=prompt_tokens,
+            response_tokens=response_tokens,
+            cost_usd=cost,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("Usage update failed notebook_id=%s", notebook_id)

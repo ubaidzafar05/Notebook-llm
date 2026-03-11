@@ -65,9 +65,12 @@ app = FastAPI(title="NotebookLM API", lifespan=lifespan)
 
 settings = get_settings()
 if settings.environment != "test":
+    allow_origins = getattr(settings, "cors_origins", None)
+    if not allow_origins:
+        allow_origins = [settings.ui_url]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -86,9 +89,20 @@ async def add_request_id(request: Request, call_next: callable) -> Response:
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     request_id = getattr(request.state, "request_id", "")
+    details = []
+    for item in exc.errors():
+        loc = item.get("loc", [])
+        field = ".".join(str(part) for part in loc)
+        details.append(
+            {
+                "field": field,
+                "message": item.get("msg", "Invalid value"),
+                "type": item.get("type", "validation_error"),
+            }
+        )
     payload = {
         "data": None,
-        "error": {"code": "VALIDATION_ERROR", "message": "Invalid request", "details": exc.errors()},
+        "error": {"code": "VALIDATION_ERROR", "message": "Request validation failed", "details": details},
         "meta": {"request_id": request_id},
     }
     return JSONResponse(content=payload, status_code=422)

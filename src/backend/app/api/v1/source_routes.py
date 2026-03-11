@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,12 +18,14 @@ from app.db.repositories.job_repo import JobRepository
 from app.db.repositories.notebook_repo import NotebookRepository
 from app.db.repositories.source_repo import ChunkRepository, SourceRepository
 from app.db.session import get_db
+from app.embeddings.embedding_service import EmbeddingService
 from app.ingestion.idempotency_store import IdempotencyStore
 from app.ingestion.ingestion_service import IngestionService
 from app.jobs.job_service import JobService
 from app.jobs.queue import TaskQueue
 from app.jobs.queue_state_store import QueueStateStore
 from app.jobs.workers import process_ingestion_job
+from app.retrieval.hybrid_retriever import HybridRetriever
 from app.vector_store.milvus_client import VectorStoreClient
 from schemas.source import SourceCreateUrlRequest
 
@@ -249,13 +252,26 @@ def ingest_url_for_notebook(
 def list_notebook_sources(
     notebook_id: str,
     request: Request,
+    source_type: list[str] | None = Query(default=None),
+    status: list[str] | None = Query(default=None),
+    q: str | None = Query(default=None),
+    from_date: datetime | None = Query(default=None, alias="from"),
+    to_date: datetime | None = Query(default=None, alias="to"),
     user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     request_id = getattr(request.state, "request_id", "")
     if _notebook_for_user(db, notebook_id, user.id) is None:
         return error_response(code="NOT_FOUND", message="Notebook not found", request_id=request_id, status_code=404)
-    sources = SourceRepository(db).list_for_notebook(user_id=user.id, notebook_id=notebook_id)
+    sources = SourceRepository(db).list_for_notebook_filtered(
+        user_id=user.id,
+        notebook_id=notebook_id,
+        source_types=source_type,
+        statuses=status,
+        created_from=from_date,
+        created_to=to_date,
+        query=q,
+    )
     jobs_by_source = _latest_ingestion_jobs_by_source(
         JobRepository(db).list_for_notebook(
             user_id=user.id,
@@ -265,6 +281,44 @@ def list_notebook_sources(
         )
     )
     data = [_serialize_source(source=src, ingestion_job=jobs_by_source.get(src.id)) for src in sources]
+    return success_response(data=data, request_id=request_id)
+
+
+@router.get("/notebooks/{notebook_id}/sources/search")
+def search_notebook_sources(
+    notebook_id: str,
+    request: Request,
+    q: str = Query(..., min_length=1),
+    limit: int = Query(default=30, ge=1, le=200),
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    request_id = getattr(request.state, "request_id", "")
+    if _notebook_for_user(db, notebook_id, user.id) is None:
+        return error_response(code="NOT_FOUND", message="Notebook not found", request_id=request_id, status_code=404)
+    vector_store = _vector_store_from_request(request)
+    chunk_repo = ChunkRepository(db)
+    retriever = HybridRetriever(
+        embedding_service=EmbeddingService(),
+        vector_store=vector_store,
+        chunk_repo=chunk_repo,
+    )
+    try:
+        records = retriever.retrieve(user_id=user.id, notebook_id=notebook_id, query=q, top_k=limit).records
+    except Exception:  # noqa: BLE001
+        return error_response(code="SEARCH_FAILED", message="Search failed", request_id=request_id, status_code=500)
+    source_ids = [record.source_id for record in records]
+    sources = SourceRepository(db).list_for_notebook(user_id=user.id, notebook_id=notebook_id)
+    source_map = {source.id: source for source in sources}
+    ordered: list[Source] = []
+    for source_id in source_ids:
+        source = source_map.get(source_id)
+        if source and source not in ordered:
+            ordered.append(source)
+    jobs_by_source = _latest_ingestion_jobs_by_source(
+        JobRepository(db).list_for_notebook(user_id=user.id, notebook_id=notebook_id, job_type="ingestion", limit=500)
+    )
+    data = [_serialize_source(source=src, ingestion_job=jobs_by_source.get(src.id)) for src in ordered]
     return success_response(data=data, request_id=request_id)
 
 

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import AppError
 from app.db.models import Source, SourceStatus, SourceType
 from app.db.repositories.source_repo import ChunkRepository, SourceRepository
+from app.db.repositories.usage_repo import NotebookUsageRepository
 from app.embeddings.embedding_service import EmbeddingService
 from app.ingestion.chunking.chunk_policy import ChunkPolicy, default_policy, markdown_policy
 from app.ingestion.chunking.recursive_chunker import chunk_text
@@ -57,7 +58,7 @@ class IngestionService:
         checksum: str,
     ) -> Source:
         source_type = infer_source_type_from_filename(filename)
-        return self.sources.create(
+        source = self.sources.create(
             user_id=user_id,
             notebook_id=notebook_id,
             name=filename,
@@ -66,9 +67,11 @@ class IngestionService:
             checksum=checksum,
             metadata_json={"source": "upload"},
         )
+        self._increment_usage_sources(notebook_id=notebook_id)
+        return source
 
     def create_source_from_url(self, user_id: str, notebook_id: str, url: str, source_type: SourceType) -> Source:
-        return self.sources.create(
+        source = self.sources.create(
             user_id=user_id,
             notebook_id=notebook_id,
             name=url,
@@ -77,6 +80,8 @@ class IngestionService:
             checksum=self.checksum_bytes(url.encode("utf-8")),
             metadata_json={"source": "url"},
         )
+        self._increment_usage_sources(notebook_id=notebook_id)
+        return source
 
     def ingest_source(self, source: Source) -> int:
         self.sources.set_status(source, SourceStatus.PROCESSING)
@@ -223,6 +228,12 @@ class IngestionService:
         metadata["failure_stage"] = failure_stage
         metadata["failure_detail"] = _sanitize_failure_detail(error.message)
         self.sources.set_status(source, SourceStatus.FAILED, metadata_json=metadata)
+
+    def _increment_usage_sources(self, *, notebook_id: str) -> None:
+        try:
+            NotebookUsageRepository(self.db).increment_sources(notebook_id=notebook_id, delta=1)
+        except Exception:  # noqa: BLE001
+            logger.exception("Usage update failed notebook_id=%s", notebook_id)
 
 
 def _failure_stage_for_code(code: str, details: dict[str, Any]) -> str:
