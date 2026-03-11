@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -136,6 +136,8 @@ class ChatSession(Base):
         nullable=True,
     )
     title: Mapped[str] = mapped_column(String(255), default="New Session")
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summary_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
@@ -217,5 +219,20 @@ class PodcastJob(Base):
     failure_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
     failure_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+
+class NotebookUsage(Base):
+    __tablename__ = "notebook_usage"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    notebook_id: Mapped[str] = mapped_column(String(36), ForeignKey("notebooks.id", ondelete="CASCADE"), index=True)
+    total_messages: Mapped[int] = mapped_column(Integer, default=0)
+    total_sources: Mapped[int] = mapped_column(Integer, default=0)
+    total_prompt_tokens_est: Mapped[int] = mapped_column(Integer, default=0)
+    total_response_tokens_est: Mapped[int] = mapped_column(Integer, default=0)
+    estimated_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    last_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

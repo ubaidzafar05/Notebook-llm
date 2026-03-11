@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import case, delete, func, literal, or_, select
@@ -61,6 +62,42 @@ class SourceRepository:
             .where(Source.user_id == user_id, Source.notebook_id == notebook_id)
             .order_by(Source.created_at.desc())
         )
+        return list(self.db.scalars(stmt).all())
+
+    def list_by_ids_for_notebook(self, *, user_id: str, notebook_id: str, source_ids: list[str]) -> list[Source]:
+        if not source_ids:
+            return []
+        stmt = select(Source).where(
+            Source.user_id == user_id,
+            Source.notebook_id == notebook_id,
+            Source.id.in_(source_ids),
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def list_for_notebook_filtered(
+        self,
+        *,
+        user_id: str,
+        notebook_id: str,
+        source_types: list[str] | None,
+        statuses: list[str] | None,
+        created_from: datetime | None,
+        created_to: datetime | None,
+        query: str | None,
+    ) -> list[Source]:
+        stmt = select(Source).where(Source.user_id == user_id, Source.notebook_id == notebook_id)
+        if source_types:
+            stmt = stmt.where(Source.source_type.in_(source_types))
+        if statuses:
+            stmt = stmt.where(Source.status.in_(statuses))
+        if created_from is not None:
+            stmt = stmt.where(Source.created_at >= created_from)
+        if created_to is not None:
+            stmt = stmt.where(Source.created_at <= created_to)
+        if query:
+            like_expr = f"%{query.lower()}%"
+            stmt = stmt.where(func.lower(Source.name).like(like_expr))
+        stmt = stmt.order_by(Source.created_at.desc())
         return list(self.db.scalars(stmt).all())
 
     def set_status(
@@ -152,6 +189,16 @@ class ChunkRepository:
         stmt = select(Chunk).where(Chunk.user_id == user_id, Chunk.source_id.in_(source_ids))
         if notebook_id is not None:
             stmt = stmt.where(Chunk.notebook_id == notebook_id)
+        return list(self.db.scalars(stmt).all())
+
+    def list_by_ids(self, *, user_id: str, notebook_id: str, chunk_ids: list[str]) -> list[Chunk]:
+        if not chunk_ids:
+            return []
+        stmt = select(Chunk).where(
+            Chunk.user_id == user_id,
+            Chunk.notebook_id == notebook_id,
+            Chunk.id.in_(chunk_ids),
+        )
         return list(self.db.scalars(stmt).all())
 
     def lexical_candidates(

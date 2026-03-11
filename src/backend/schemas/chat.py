@@ -14,6 +14,8 @@ class ChatSessionOut(BaseModel):
     title: str
     created_at: str
     updated_at: str
+    summary: str | None = None
+    summary_updated_at: str | None = None
 
 
 class ChatMessageRequest(BaseModel):

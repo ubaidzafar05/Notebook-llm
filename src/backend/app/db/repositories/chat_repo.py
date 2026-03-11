@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import ChatMessage, ChatSession
@@ -66,6 +66,20 @@ class ChatRepository:
         self.db.refresh(message)
         return message
 
+    def count_messages(self, session_id: str) -> int:
+        stmt = select(func.count()).select_from(ChatMessage).where(ChatMessage.session_id == session_id)
+        return int(self.db.scalar(stmt) or 0)
+
+    def update_session_summary(self, session_id: str, summary: str) -> None:
+        session = self.db.scalar(select(ChatSession).where(ChatSession.id == session_id))
+        if session is None:
+            return
+        session.summary = summary
+        session.summary_updated_at = datetime.now(UTC)
+        session.updated_at = datetime.now(UTC)
+        self.db.add(session)
+        self.db.commit()
+
     def list_messages(self, user_id: str, session_id: str) -> list[ChatMessage]:
         stmt = (
             select(ChatMessage)
@@ -85,5 +99,53 @@ class ChatRepository:
                 ChatSession.id == session_id,
             )
             .order_by(ChatMessage.created_at.asc())
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def search_messages_for_notebook(
+        self,
+        *,
+        user_id: str,
+        notebook_id: str,
+        query: str,
+        limit: int,
+    ) -> list[ChatMessage]:
+        trimmed = query.strip()
+        if not trimmed:
+            return []
+        dialect = self.db.bind.dialect.name if self.db.bind is not None else ""
+        if dialect == "postgresql":
+            return self._postgres_search(user_id=user_id, notebook_id=notebook_id, query=trimmed, limit=limit)
+        return self._fallback_search(user_id=user_id, notebook_id=notebook_id, query=trimmed, limit=limit)
+
+    def _postgres_search(self, *, user_id: str, notebook_id: str, query: str, limit: int) -> list[ChatMessage]:
+        ts_query = func.plainto_tsquery("english", query)
+        vector = func.to_tsvector("english", ChatMessage.content)
+        rank = func.ts_rank_cd(vector, ts_query)
+        stmt = (
+            select(ChatMessage)
+            .join(ChatSession, ChatMessage.session_id == ChatSession.id)
+            .where(
+                ChatSession.user_id == user_id,
+                ChatSession.notebook_id == notebook_id,
+                vector.op("@@")(ts_query),
+            )
+            .order_by(rank.desc(), ChatMessage.created_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def _fallback_search(self, *, user_id: str, notebook_id: str, query: str, limit: int) -> list[ChatMessage]:
+        like_expr = f"%{query.lower()}%"
+        stmt = (
+            select(ChatMessage)
+            .join(ChatSession, ChatMessage.session_id == ChatSession.id)
+            .where(
+                ChatSession.user_id == user_id,
+                ChatSession.notebook_id == notebook_id,
+                func.lower(ChatMessage.content).like(like_expr),
+            )
+            .order_by(ChatMessage.created_at.desc())
+            .limit(limit)
         )
         return list(self.db.scalars(stmt).all())

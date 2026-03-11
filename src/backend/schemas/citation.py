@@ -10,3 +10,5 @@ class Citation(BaseModel):
     page_number: int | None = None
     start_timestamp: float | None = None
     end_timestamp: float | None = None
+    score: float | None = None
+    quality_label: str | None = None
