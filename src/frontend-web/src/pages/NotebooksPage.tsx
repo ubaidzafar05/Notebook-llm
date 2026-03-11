@@ -281,15 +281,12 @@ export function NotebooksPage(): JSX.Element {
                   <label className="mb-2 block text-sm font-medium text-[color:var(--text-primary)]" htmlFor="create-description">Description</label>
                   <Input id="create-description" value={createDescription} onChange={(event) => setCreateDescription(event.target.value)} />
                 </div>
-                <motion.div
-                  animate={reduceMotion ? undefined : { scale: [1, 1.02, 1] }}
-                  transition={{ duration: 2.2, repeat: Infinity }}
-                >
+                <div className={reduceMotion ? "" : "animate-[pulse_2.2s_ease-in-out_infinite]"}>
                   <Button className="w-full" disabled={notebookMutations.createNotebook.isPending} onClick={() => void handleCreateNotebook()}>
                     {notebookMutations.createNotebook.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                     Create notebook
                   </Button>
-                </motion.div>
+                </div>
                 {error ? (
                   <p className="rounded-xl border border-[color:hsl(var(--destructive)/0.3)] bg-[color:hsl(var(--destructive)/0.1)] px-3 py-2 text-sm text-[color:hsl(var(--destructive))]">{error}</p>
                 ) : null}
@@ -442,16 +439,12 @@ function EmptyLibrary({ onCreate, reduceMotion }: { onCreate: () => void; reduce
               </div>
             ))}
           </div>
-          <motion.div
-            className="mt-5 inline-flex"
-            animate={reduceMotion ? undefined : { scale: [1, 1.04, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
+          <div className={cn("mt-5 inline-flex", reduceMotion ? "" : "animate-[pulse_2s_ease-in-out_infinite]")}>
             <Button onClick={onCreate}>
               <Wand2 className="h-4 w-4" />
               Create your first notebook
             </Button>
-          </motion.div>
+          </div>
         </div>
       </div>
     </div>
