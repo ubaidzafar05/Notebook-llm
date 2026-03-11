@@ -26,6 +26,8 @@ def test_notebook_crud_contract_and_default_protection(client: TestClient) -> No
     initial_items = list_response.json()["data"]
     assert len(initial_items) == 1
     assert initial_items[0]["is_default"] is True
+    assert initial_items[0]["is_pinned"] is False
+    assert initial_items[0]["pinned_at"] is None
     default_notebook_id = initial_items[0]["id"]
 
     create_response = client.post(
@@ -38,6 +40,8 @@ def test_notebook_crud_contract_and_default_protection(client: TestClient) -> No
     assert notebook["title"] == "Research Notes"
     assert notebook["description"] == "Focused notebook"
     assert notebook["is_default"] is False
+    assert notebook["is_pinned"] is False
+    assert notebook["pinned_at"] is None
 
     get_response = client.get(f"/api/v1/notebooks/{notebook['id']}", headers=headers)
     assert get_response.status_code == 200
@@ -50,6 +54,16 @@ def test_notebook_crud_contract_and_default_protection(client: TestClient) -> No
     )
     assert update_response.status_code == 200
     assert update_response.json()["data"]["title"] == "Research Archive"
+
+    pin_response = client.patch(
+        f"/api/v1/notebooks/{notebook['id']}",
+        headers=headers,
+        json={"is_pinned": True},
+    )
+    assert pin_response.status_code == 200
+    pinned = pin_response.json()["data"]
+    assert pinned["is_pinned"] is True
+    assert pinned["pinned_at"] is not None
 
     protected_delete = client.delete(f"/api/v1/notebooks/{default_notebook_id}", headers=headers)
     assert protected_delete.status_code == 409

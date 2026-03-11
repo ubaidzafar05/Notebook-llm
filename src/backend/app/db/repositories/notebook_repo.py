@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Notebook
@@ -32,7 +32,12 @@ class NotebookRepository:
         return notebook
 
     def list_for_user(self, user_id: str) -> list[Notebook]:
-        stmt = select(Notebook).where(Notebook.user_id == user_id).order_by(Notebook.updated_at.desc())
+        pinned_sort = case((Notebook.pinned_at.is_(None), 1), else_=0)
+        stmt = (
+            select(Notebook)
+            .where(Notebook.user_id == user_id)
+            .order_by(Notebook.is_pinned.desc(), pinned_sort.asc(), Notebook.pinned_at.desc(), Notebook.updated_at.desc())
+        )
         return list(self.db.scalars(stmt).all())
 
     def get_for_user(self, notebook_id: str, user_id: str) -> Notebook | None:
@@ -49,13 +54,30 @@ class NotebookRepository:
             return existing
         return self.create(user_id=user_id, title="Default Notebook", description=None, is_default=True)
 
-    def update(self, notebook: Notebook, *, title: str, description: str | None) -> Notebook:
-        notebook.title = title
-        notebook.description = description
-        notebook.updated_at = datetime.now(UTC)
-        self.db.add(notebook)
-        self.db.commit()
-        self.db.refresh(notebook)
+    def update(
+        self,
+        notebook: Notebook,
+        *,
+        title: str | None,
+        description: str | None,
+        is_pinned: bool | None,
+    ) -> Notebook:
+        changed = False
+        if title is not None and title != notebook.title:
+            notebook.title = title
+            changed = True
+        if description is not None and description != notebook.description:
+            notebook.description = description
+            changed = True
+        if is_pinned is not None and is_pinned != notebook.is_pinned:
+            notebook.is_pinned = is_pinned
+            notebook.pinned_at = datetime.now(UTC) if is_pinned else None
+            changed = True
+        if changed:
+            notebook.updated_at = datetime.now(UTC)
+            self.db.add(notebook)
+            self.db.commit()
+            self.db.refresh(notebook)
         return notebook
 
     def delete(self, notebook: Notebook) -> None:

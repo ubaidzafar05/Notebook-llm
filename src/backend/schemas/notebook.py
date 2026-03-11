@@ -9,8 +9,9 @@ class NotebookCreateRequest(BaseModel):
 
 
 class NotebookUpdateRequest(BaseModel):
-    title: str = Field(min_length=1, max_length=255)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=1000)
+    is_pinned: bool | None = None
 
 
 class NotebookSummary(BaseModel):
@@ -18,5 +19,7 @@ class NotebookSummary(BaseModel):
     title: str
     description: str | None
     is_default: bool
+    is_pinned: bool
+    pinned_at: str | None
     created_at: str
     updated_at: str

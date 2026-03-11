@@ -70,7 +70,12 @@ def update_notebook(
     notebook = repo.get_for_user(notebook_id, user.id)
     if notebook is None:
         return error_response(code="NOT_FOUND", message="Notebook not found", request_id=request_id, status_code=404)
-    updated = repo.update(notebook, title=payload.title, description=payload.description)
+    updated = repo.update(
+        notebook,
+        title=payload.title,
+        description=payload.description,
+        is_pinned=payload.is_pinned,
+    )
     return success_response(data=_serialize_notebook(updated), request_id=request_id)
 
 
@@ -137,6 +142,8 @@ def _serialize_notebook(notebook: Notebook) -> dict[str, object]:
         "title": notebook.title,
         "description": notebook.description,
         "is_default": notebook.is_default,
+        "is_pinned": notebook.is_pinned,
+        "pinned_at": notebook.pinned_at.isoformat() if notebook.pinned_at else None,
         "created_at": notebook.created_at.isoformat(),
         "updated_at": notebook.updated_at.isoformat(),
     }
