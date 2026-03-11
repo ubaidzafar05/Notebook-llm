@@ -43,7 +43,7 @@ export function LoginPage(): JSX.Element {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+    <main className="auth-shell flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
       <section className="w-full max-w-[980px] rounded-[2rem] border border-[color:var(--panel-border)] bg-[color:var(--surface-2)]/95 p-6 shadow-panel backdrop-blur-xl md:grid md:grid-cols-[1.1fr_0.9fr] md:gap-8 md:p-8">
         <div className="flex flex-col justify-between rounded-[1.8rem] border border-[color:var(--panel-border)] bg-[color:var(--response-bg)] p-6">
           <div>

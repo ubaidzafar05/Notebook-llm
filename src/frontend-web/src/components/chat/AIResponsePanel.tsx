@@ -34,11 +34,17 @@ export function AIResponsePanel({
     () => message?.content ?? "Ask a question to generate a grounded answer from your selected sources.",
     [message]
   );
+  const citations = useMemo(() => {
+    if (!message?.citations) {
+      return [];
+    }
+    return [...message.citations].sort((left, right) => (right.score ?? 0) - (left.score ?? 0));
+  }, [message?.citations]);
 
   return (
     <motion.section
       className={cn(
-        "w-full rounded-3xl border border-[color:var(--panel-border)] bg-[color:var(--response-bg)] p-6 shadow-panel sm:p-7",
+        "w-full rounded-3xl border border-[color:var(--panel-border)] bg-[color:var(--response-bg)] p-7 shadow-panel",
         className
       )}
       initial={{ opacity: 0, y: 14 }}
@@ -50,8 +56,8 @@ export function AIResponsePanel({
           <BookText className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-[color:var(--text-kicker)]">Notebook answer</p>
-          <h3 className="mt-1 font-serif text-[clamp(1.25rem,1.6vw,1.75rem)] leading-tight text-[color:var(--text-hero)]">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-[color:var(--text-kicker)]">Grounded answer</p>
+          <h3 className="mt-1 font-serif text-[clamp(1.3rem,1.7vw,1.85rem)] leading-tight text-[color:var(--text-hero)]">
             Grounded reading
           </h3>
           <p className="mt-1 text-xs text-[color:var(--text-kicker)]">
@@ -61,7 +67,7 @@ export function AIResponsePanel({
       </div>
 
       {/* Answer body */}
-      <div className="mt-5 rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-5">
+      <div className="mt-6 rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-5">
         <button
           className="flex w-full items-center justify-between text-left"
           type="button"
@@ -77,7 +83,7 @@ export function AIResponsePanel({
         </button>
 
         {responseExpanded ? (
-          <div className="prose mt-5 max-w-none text-[15px] leading-7">
+          <div className="prose mt-5 max-w-none text-[16px] leading-7">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -112,8 +118,8 @@ export function AIResponsePanel({
       </div>
 
       {/* Citations */}
-      {message?.citations?.length ? (
-        <div className="mt-5 rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-5">
+      {citations.length ? (
+        <div className="mt-6 rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-5">
           <button
             className="flex w-full items-center justify-between text-left"
             type="button"
@@ -121,7 +127,7 @@ export function AIResponsePanel({
             onClick={onToggleCitations}
           >
             <span className="text-sm font-semibold text-[color:var(--text-primary)]">
-              Citations ({message.citations.length})
+              Citations ({citations.length})
             </span>
             {citationsExpanded ? (
               <ChevronUp className="h-4 w-4 text-[color:var(--text-muted)]" />
@@ -131,8 +137,8 @@ export function AIResponsePanel({
           </button>
 
           {citationsExpanded ? (
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              {message.citations.map((citation) => (
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              {citations.map((citation) => (
                 <CitationGlowCard key={citation.id} citation={citation} onHover={onCitationHover} onOpen={onCitationOpen} />
               ))}
             </div>

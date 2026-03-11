@@ -12,7 +12,7 @@ type CitationGlowCardProps = {
 export function CitationGlowCard({ citation, onHover, onOpen }: CitationGlowCardProps): JSX.Element {
   return (
     <motion.div
-      className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] p-3"
+      className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] p-4"
       whileHover={{ y: -1 }}
       onMouseEnter={() => onHover(citation.sourceId)}
       onMouseLeave={() => onHover(null)}
@@ -23,10 +23,17 @@ export function CitationGlowCard({ citation, onHover, onOpen }: CitationGlowCard
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">{citation.documentTitle}</p>
-          <p className="text-xs text-[color:var(--text-kicker)]">{citation.pageNumber ? `Page ${citation.pageNumber}` : "Referenced excerpt"}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--text-kicker)]">
+            <span>{citation.pageNumber ? `Page ${citation.pageNumber}` : "Referenced excerpt"}</span>
+            {citation.qualityLabel ? (
+              <span className="rounded-full border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] px-2 py-0.5 text-[10px] uppercase tracking-[0.2em]">
+                {citation.qualityLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
-      <p className="mt-2.5 line-clamp-3 text-sm leading-6 text-[color:var(--text-muted)]">{citation.excerpt}</p>
+      <p className="mt-3 line-clamp-3 text-sm leading-6 text-[color:var(--text-muted)]">{citation.excerpt}</p>
       <Button className="mt-3 w-full" size="sm" variant="outline" onClick={() => onOpen(citation)}>
         <ExternalLink className="h-4 w-4" />
         Open source

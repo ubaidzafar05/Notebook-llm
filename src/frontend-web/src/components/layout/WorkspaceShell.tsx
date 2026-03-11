@@ -26,23 +26,31 @@ export function WorkspaceShell({
   return (
     <>
       <main className="mx-auto w-full max-w-[1760px] px-4 pb-8 pt-5 sm:px-6 lg:pb-10">
-        <div className="flex items-start gap-6">
+        <div
+          className="grid items-start gap-6"
+          style={{
+            gridTemplateColumns: galleryCollapsed ? "0px 1fr" : "var(--gallery-rail-width) 1fr",
+          }}
+        >
           {/* Gallery rail — collapsible */}
-          <motion.aside
-            aria-label="Source gallery"
-            className={cn(
-              "hidden shrink-0 xl:block",
-              galleryCollapsed ? "w-0 overflow-hidden" : "w-[var(--gallery-rail-width)]"
-            )}
-            initial={false}
-            animate={{
-              width: galleryCollapsed ? 0 : 300,
-              opacity: galleryCollapsed ? 0 : 1,
-            }}
-            transition={springs.galleryToggle}
-          >
-            <div className="min-w-[280px] space-y-4">{left}</div>
-          </motion.aside>
+          <div className="hidden xl:block">
+            <motion.aside
+              aria-label="Source gallery"
+              className={cn(
+                "h-full w-[var(--gallery-rail-width)]",
+                galleryCollapsed && "pointer-events-none"
+              )}
+              initial={false}
+              animate={{
+                x: galleryCollapsed ? -320 : 0,
+                opacity: galleryCollapsed ? 0 : 1,
+              }}
+              transition={springs.galleryToggle}
+              style={{ willChange: "transform" }}
+            >
+              <div className="min-w-[280px] space-y-4">{left}</div>
+            </motion.aside>
+          </div>
 
           {/* Gallery toggle for desktop */}
           <div className="hidden pt-1 xl:block">
@@ -61,7 +69,7 @@ export function WorkspaceShell({
           </div>
 
           {/* Center — Answer Board (dominant) */}
-          <section className="min-w-0 flex-1">
+          <section className="min-w-0">
             <div className="mx-auto max-w-[var(--answer-board-max-width)]">{children}</div>
           </section>
         </div>

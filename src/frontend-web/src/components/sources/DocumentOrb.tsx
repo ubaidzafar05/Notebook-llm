@@ -51,14 +51,14 @@ export function DocumentOrb({ document, isSelected, isActive, onSelect, onHover,
             <Icon className="h-4.5 w-4.5 text-[color:var(--text-primary)]" />
           </div>
 
-          <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-[15px] font-semibold leading-6 text-[color:var(--text-primary)]">{document.title}</p>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p className="break-words line-clamp-2 text-[15px] font-semibold leading-6 text-[color:var(--text-primary)]">{document.title}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge variant="secondary">{fileTypeLabel(document.type)}</Badge>
               <Badge variant={document.status === "ready" ? "success" : document.status === "processing" ? "warning" : "destructive"}>{document.backendStatus}</Badge>
               {isSelected ? <Badge className="bg-[color:var(--chip-accent-bg)] text-[color:var(--chip-accent-text)]">attached</Badge> : null}
             </div>
-            <p className="mt-3 line-clamp-2 text-sm leading-6 text-[color:var(--text-muted)]">{document.summary}</p>
+            <p className="mt-3 break-words line-clamp-2 text-sm leading-6 text-[color:var(--text-muted)]">{document.summary}</p>
             <div className="mt-3 flex items-center justify-between text-xs text-[color:var(--text-kicker)]">
               <span>{document.chunks} chunks</span>
               <span>{formatRelativeTime(document.updatedAt)}</span>

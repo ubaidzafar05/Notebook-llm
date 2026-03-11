@@ -28,9 +28,9 @@ export function InsightEnginePanel({ insight }: { insight: InsightSnapshot }): J
 
       <div className="space-y-2.5">
         {insight.summaries.map((summary) => (
-          <article key={summary.id} className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-4">
-            <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">{summary.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">{summary.summary}</p>
+          <article key={summary.id} className="min-w-0 overflow-hidden rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-4">
+            <h3 className="break-words text-sm font-semibold text-[color:var(--text-primary)]">{summary.title}</h3>
+            <p className="mt-2 break-words text-sm leading-6 text-[color:var(--text-muted)]">{summary.summary}</p>
           </article>
         ))}
       </div>

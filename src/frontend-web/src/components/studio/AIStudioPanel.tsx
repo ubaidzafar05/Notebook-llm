@@ -1,5 +1,5 @@
 import { BookOpenText, SlidersHorizontal, Sparkles } from "lucide-react";
-import type { InsightSnapshot, ModelOption, PodcastGenerationPhase, PodcastResult, SourceDocument, VoiceOption } from "@/lib/api";
+import type { ChatSearchResult, InsightSnapshot, ModelOption, NotebookUsage, PodcastGenerationPhase, PodcastResult, SourceDocument, VoiceOption } from "@/lib/api";
 import type { StudioTab } from "@/store/use-workspace-store";
 import { PanelShell } from "@/components/layout/PanelShell";
 import { PodcastStudio } from "@/components/studio/PodcastStudio";
@@ -14,6 +14,12 @@ type AIStudioPanelProps = {
   documents: SourceDocument[];
   selectedDocumentIds: string[];
   insight: InsightSnapshot;
+  usage: NotebookUsage | null;
+  historyQuery: string;
+  historyResults: ChatSearchResult[];
+  historyLoading: boolean;
+  sessionSummary: string | null;
+  onOpenHistoryResult: (sessionId: string) => void;
   podcasts: PodcastResult[];
   chatSettings: {
     topK: number;
@@ -39,6 +45,12 @@ export function AIStudioPanel({
   documents,
   selectedDocumentIds,
   insight,
+  usage,
+  historyQuery,
+  historyResults,
+  historyLoading,
+  sessionSummary,
+  onOpenHistoryResult,
   podcasts,
   chatSettings,
   selectedVoice,
@@ -80,6 +92,13 @@ export function AIStudioPanel({
 
         {/* Chat settings */}
         <TabsContent className="space-y-4 pt-1" value="chat">
+          <div className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-4">
+            <p className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--text-kicker)]">Session summary</p>
+            <p className="mt-2 text-sm text-[color:var(--text-muted)]">
+              {sessionSummary ?? "A summary appears after a few exchanges."}
+            </p>
+          </div>
+
           <div className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-4">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[color:var(--text-primary)]">
@@ -127,8 +146,6 @@ export function AIStudioPanel({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ollama/qwen3:8b">ollama/qwen3:8b</SelectItem>
-                <SelectItem value="openrouter/claude-3.7-sonnet">openrouter/claude-3.7-sonnet</SelectItem>
-                <SelectItem value="openrouter/gpt-4.1-mini">openrouter/gpt-4.1-mini</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -167,7 +184,61 @@ export function AIStudioPanel({
 
         {/* Insights */}
         <TabsContent value="insight">
-          <InsightEnginePanel insight={insight} />
+          <div className="space-y-4">
+            <InsightEnginePanel insight={insight} />
+            {usage ? (
+              <div className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-4">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--text-kicker)]">Usage</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] p-3 text-sm">
+                    <p className="text-xs text-[color:var(--text-muted)]">Messages</p>
+                    <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{usage.totalMessages}</p>
+                  </div>
+                  <div className="rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] p-3 text-sm">
+                    <p className="text-xs text-[color:var(--text-muted)]">Sources</p>
+                    <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{usage.totalSources}</p>
+                  </div>
+                  <div className="rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] p-3 text-sm">
+                    <p className="text-xs text-[color:var(--text-muted)]">Prompt tokens (est)</p>
+                    <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{usage.totalPromptTokensEst}</p>
+                  </div>
+                  <div className="rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] p-3 text-sm">
+                    <p className="text-xs text-[color:var(--text-muted)]">Response tokens (est)</p>
+                    <p className="mt-1 text-lg font-semibold text-[color:var(--text-primary)]">{usage.totalResponseTokensEst}</p>
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-[color:var(--text-muted)]">
+                  Estimated cost: ${usage.estimatedCostUsd.toFixed(2)}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-4">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--text-kicker)]">Chat history search</p>
+              <p className="mt-2 text-sm text-[color:var(--text-muted)]">
+                {historyQuery ? `Results for "${historyQuery}"` : "Use the top search bar to query chat history."}
+              </p>
+              <div className="mt-3 space-y-2">
+                {historyLoading ? (
+                  <p className="text-sm text-[color:var(--text-muted)]">Searching…</p>
+                ) : historyResults.length ? (
+                  historyResults.slice(0, 6).map((result) => (
+                    <button
+                      key={result.id}
+                      className="w-full rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] p-3 text-left text-sm text-[color:var(--text-primary)]"
+                      type="button"
+                      onClick={() => onOpenHistoryResult(result.sessionId)}
+                    >
+                      <p className="line-clamp-2">{result.content}</p>
+                      <p className="mt-1 text-xs text-[color:var(--text-muted)]">{new Date(result.createdAt).toLocaleString()}</p>
+                    </button>
+                  ))
+                ) : historyQuery ? (
+                  <p className="text-sm text-[color:var(--text-muted)]">No matches found.</p>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </PanelShell>

@@ -35,7 +35,7 @@ export function RegisterPage(): JSX.Element {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+    <main className="auth-shell flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
       <section className="w-full max-w-[760px] rounded-[2rem] border border-[color:var(--panel-border)] bg-[color:var(--surface-2)]/95 p-8 shadow-panel backdrop-blur-xl">
         <p className="text-xs uppercase tracking-[0.32em] text-[color:var(--text-kicker)]">Create account</p>
         <h1 className="mt-4 font-serif text-[clamp(2.2rem,4vw,3.5rem)] leading-[0.96] tracking-[-0.04em] text-[color:var(--text-hero)]">

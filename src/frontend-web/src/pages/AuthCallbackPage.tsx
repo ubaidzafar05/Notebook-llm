@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { useAuthMutations } from "@/hooks/use-workspace-queries";
-import { ApiError } from "@/lib/api";
+import { ApiError, exchangeGoogleCode } from "@/lib/api";
 import { useAuthStore } from "@/store/use-auth-store";
 
 export function AuthCallbackPage(): JSX.Element {
@@ -12,44 +11,64 @@ export function AuthCallbackPage(): JSX.Element {
   const [searchParams] = useSearchParams();
   const oauthCode = searchParams.get("oauth_code");
   const setSession = useAuthStore((state) => state.setSession);
-  const { exchangeGoogleCode: exchangeMutation } = useAuthMutations();
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const exchangeStateRef = useRef<{ code: string | null; status: "idle" | "pending" | "done" }>({
+    code: null,
+    status: "idle"
+  });
 
   useEffect(() => {
-    let cancelled = false;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-    async function exchange(): Promise<void> {
-      if (!oauthCode) {
-        setError("Missing OAuth exchange code.");
-        return;
-      }
-      try {
-        const session = await exchangeMutation.mutateAsync(oauthCode);
-        if (cancelled) {
+  useEffect(() => {
+    if (!oauthCode) {
+      setError("Missing OAuth exchange code.");
+      return;
+    }
+    const state = exchangeStateRef.current;
+    if (state.code === oauthCode && state.status !== "idle") {
+      return;
+    }
+    state.code = oauthCode;
+    state.status = "pending";
+
+    exchangeGoogleCode(oauthCode)
+      .then((session) => {
+        state.status = "done";
+        if (!mountedRef.current) {
           return;
         }
         setSession(session);
         navigate("/notebooks", { replace: true });
-      } catch (cause) {
-        if (!cancelled) {
-          setError(cause instanceof ApiError ? cause.message : "Google sign in failed.");
+      })
+      .catch((cause) => {
+        state.status = "idle";
+        if (!mountedRef.current) {
+          return;
         }
-      }
-    }
-
-    void exchange();
-    return () => {
-      cancelled = true;
-    };
-  }, [exchangeMutation, navigate, oauthCode, setSession]);
+        setError(cause instanceof ApiError ? cause.message : "Google sign in failed.");
+      });
+  }, [oauthCode, setSession, navigate]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+    <main className="auth-shell flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
       <section className="w-full max-w-[560px] rounded-[2rem] border border-[color:var(--panel-border)] bg-[color:var(--surface-2)]/95 p-8 text-center shadow-panel backdrop-blur-xl">
         {error ? (
           <>
             <h1 className="font-serif text-3xl text-[color:var(--text-hero)]">Sign in failed</h1>
             <p className="mt-4 text-sm leading-6 text-[color:var(--text-muted)]">{error}</p>
+            <button
+              type="button"
+              className="mt-6 rounded-xl bg-[color:var(--accent-soft)] px-6 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+              onClick={() => navigate("/login", { replace: true })}
+            >
+              Back to login
+            </button>
           </>
         ) : (
           <>
