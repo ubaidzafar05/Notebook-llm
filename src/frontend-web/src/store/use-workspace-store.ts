@@ -25,6 +25,12 @@ type DocumentState = {
   hoveredDocumentId: string | null;
   activeDocumentId: string | null;
   ingestionStateById: Record<string, SourceDocument["status"]>;
+  sourceFilters: {
+    types: string[];
+    statuses: string[];
+    from: string | null;
+    to: string | null;
+  };
 };
 
 type SceneState = {
@@ -61,6 +67,7 @@ type UiShellState = {
   studioOpen: boolean;
   activeStudioTab: StudioTab;
   galleryCollapsed: boolean;
+  historySearchOpen: boolean;
 };
 
 type AnswerBoardState = {
@@ -70,6 +77,7 @@ type AnswerBoardState = {
     notes: boolean;
   };
   highlightedSourceId: string | null;
+  viewMode: "board" | "graph";
 };
 
 type WorkspaceState = {
@@ -85,6 +93,7 @@ type WorkspaceState = {
   updateMessage: (messageId: string, updater: (message: ChatMessageRecord) => ChatMessageRecord) => void;
   setDraftPrompt: (draftPrompt: string) => void;
   toggleDocumentSelection: (sourceId: string) => void;
+  clearSelectedDocuments: () => void;
   setHoveredDocument: (sourceId: string | null) => void;
   setActiveDocument: (sourceId: string | null) => void;
   setAttachedDocuments: (sourceIds: string[]) => void;
@@ -105,8 +114,11 @@ type WorkspaceState = {
   setPodcastOutput: (payload: { script: string; audioUrl: string; waveform: number[] }) => void;
   setAnswerSectionExpanded: (section: keyof AnswerBoardState["expandedSections"], expanded: boolean) => void;
   setAnswerBoardHighlightedSource: (sourceId: string | null) => void;
+  setAnswerViewMode: (mode: AnswerBoardState["viewMode"]) => void;
   setGalleryCollapsed: (collapsed: boolean) => void;
   toggleGalleryCollapsed: () => void;
+  setSourceFilters: (filters: DocumentState["sourceFilters"]) => void;
+  setHistorySearchOpen: (open: boolean) => void;
 };
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -115,7 +127,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     selectedDocumentIds: ["src-1", "src-2"],
     hoveredDocumentId: null,
     activeDocumentId: "src-1",
-    ingestionStateById: {}
+    ingestionStateById: {},
+    sourceFilters: {
+      types: [],
+      statuses: [],
+      from: null,
+      to: null
+    }
   },
   sceneState: {
     nodes: [],
@@ -131,7 +149,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     messages: [],
     draftPrompt: "",
     streamingAnswerId: null,
-    attachedDocumentIds: ["src-1", "src-2"]
+    attachedDocumentIds: []
   },
   studioState: {
     chatSettings: {
@@ -151,6 +169,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     studioOpen: false,
     activeStudioTab: "chat",
     galleryCollapsed: false,
+    historySearchOpen: false
   },
   answerBoardState: {
     expandedSections: {
@@ -158,7 +177,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       citations: true,
       notes: true
     },
-    highlightedSourceId: null
+    highlightedSourceId: null,
+    viewMode: "board"
   },
   setKnowledgeGraph: (documents, nodes, edges) =>
     set((state) => ({
@@ -208,6 +228,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
         chatState: { ...state.chatState, attachedDocumentIds: selected }
       };
     }),
+  clearSelectedDocuments: () =>
+    set((state) => ({
+      documentsState: { ...state.documentsState, selectedDocumentIds: [] },
+      chatState: { ...state.chatState, attachedDocumentIds: [] }
+    })),
   setHoveredDocument: (sourceId) => set((state) => ({ documentsState: { ...state.documentsState, hoveredDocumentId: sourceId } })),
   setActiveDocument: (sourceId) => set((state) => ({ documentsState: { ...state.documentsState, activeDocumentId: sourceId } })),
   setAttachedDocuments: (sourceIds) => set((state) => ({ chatState: { ...state.chatState, attachedDocumentIds: sourceIds } })),
@@ -269,8 +294,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       }
     })),
   setAnswerBoardHighlightedSource: (sourceId) => set((state) => ({ answerBoardState: { ...state.answerBoardState, highlightedSourceId: sourceId } })),
+  setAnswerViewMode: (mode) =>
+    set((state) => ({ answerBoardState: { ...state.answerBoardState, viewMode: mode } })),
   setGalleryCollapsed: (collapsed) => set((state) => ({ uiShellState: { ...state.uiShellState, galleryCollapsed: collapsed } })),
   toggleGalleryCollapsed: () => set((state) => ({ uiShellState: { ...state.uiShellState, galleryCollapsed: !state.uiShellState.galleryCollapsed } })),
+  setSourceFilters: (filters) => set((state) => ({ documentsState: { ...state.documentsState, sourceFilters: filters } })),
+  setHistorySearchOpen: (open) => set((state) => ({ uiShellState: { ...state.uiShellState, historySearchOpen: open } })),
 }));
 
 export const workspaceSelectors = {
@@ -287,7 +316,8 @@ export const workspaceSelectors = {
   studioState: (state: WorkspaceState) => state.studioState,
   sceneState: (state: WorkspaceState) => state.sceneState,
   uiShellState: (state: WorkspaceState) => state.uiShellState,
-  answerBoardState: (state: WorkspaceState) => state.answerBoardState
+  answerBoardState: (state: WorkspaceState) => state.answerBoardState,
+  sourceFilters: (state: WorkspaceState) => state.documentsState.sourceFilters
 };
 
 export function getLatestAssistantMessage(messages: ChatMessageRecord[]): ChatMessageRecord | null {

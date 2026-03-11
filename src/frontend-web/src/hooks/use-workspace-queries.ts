@@ -7,9 +7,11 @@ import {
   deleteNotebook,
   deleteNotebookSource,
   exchangeGoogleCode,
+  exportNotebookSession,
   getJob,
   getNotebook,
   getNotebookSource,
+  getNotebookUsage,
   getSourceChunks,
   ingestNotebookUrl,
   listNotebookMessages,
@@ -17,10 +19,13 @@ import {
   listNotebooks,
   listNotebookSessions,
   listNotebookSources,
+  listNotebookSourcesFiltered,
   login,
   logout,
   register,
   retryNotebookPodcast,
+  searchNotebookMessages,
+  searchNotebookSources,
   startGoogleAuth,
   streamNotebookMessage,
   updateNotebook,
@@ -61,6 +66,26 @@ export function useNotebookSourcesQuery(notebookId: string, enabled = true) {
   });
 }
 
+export function useNotebookSourcesFilteredQuery(
+  notebookId: string,
+  filters: { type?: string[]; status?: string[]; from?: string; to?: string; q?: string },
+  enabled = true
+) {
+  return useQuery({
+    queryKey: ["notebooks", notebookId, "sources", "filtered", filters],
+    queryFn: () => listNotebookSourcesFiltered(notebookId, filters),
+    enabled: enabled && Boolean(notebookId)
+  });
+}
+
+export function useNotebookSourcesSearchQuery(notebookId: string, query: string, enabled = true) {
+  return useQuery({
+    queryKey: ["notebooks", notebookId, "sources", "search", query],
+    queryFn: () => searchNotebookSources(notebookId, query),
+    enabled: enabled && Boolean(notebookId) && Boolean(query.trim())
+  });
+}
+
 export function useNotebookSourceQuery(notebookId: string, sourceId: string, enabled = true) {
   return useQuery({
     queryKey: ["notebooks", notebookId, "sources", sourceId],
@@ -90,6 +115,22 @@ export function useNotebookMessagesQuery(notebookId: string, sessionId: string, 
     queryKey: ["notebooks", notebookId, "sessions", sessionId, "messages"],
     queryFn: () => listNotebookMessages(notebookId, sessionId, sourceMap),
     enabled: enabled && Boolean(notebookId) && Boolean(sessionId)
+  });
+}
+
+export function useChatSearchQuery(notebookId: string, query: string, enabled = true) {
+  return useQuery({
+    queryKey: ["notebooks", notebookId, "chat", "search", query],
+    queryFn: () => searchNotebookMessages(notebookId, query),
+    enabled: enabled && Boolean(notebookId) && Boolean(query.trim())
+  });
+}
+
+export function useNotebookUsageQuery(notebookId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["notebooks", notebookId, "usage"],
+    queryFn: () => getNotebookUsage(notebookId),
+    enabled: enabled && Boolean(notebookId)
   });
 }
 
@@ -211,6 +252,26 @@ export function useChatMutations(notebookId: string, sourceMap: SourceMapContext
       }
     })
   };
+}
+
+export function useExportMutation(notebookId: string) {
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      format,
+      context
+    }: {
+      sessionId: string;
+      format: "md" | "pdf";
+      context?: {
+        topK?: number;
+        similarityThreshold?: number;
+        model?: string;
+        memoryEnabled?: boolean;
+        attachedSourceIds?: string[];
+      };
+    }) => exportNotebookSession(notebookId, sessionId, format, context)
+  });
 }
 
 export function usePodcastMutations(notebookId: string) {

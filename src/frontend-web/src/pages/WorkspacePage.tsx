@@ -7,6 +7,11 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import {
   useAuthMutations,
   useChatMutations,
+  useChatSearchQuery,
+  useExportMutation,
+  useNotebookSourcesFilteredQuery,
+  useNotebookSourcesSearchQuery,
+  useNotebookUsageQuery,
   useNotebookPodcastsQuery,
   useNotebookQuery,
   useNotebookSessionsQuery,
@@ -40,6 +45,7 @@ export function WorkspacePage(): JSX.Element {
   const activeDocumentId = useWorkspaceStore(workspaceSelectors.activeDocumentId);
   const hoveredDocumentId = useWorkspaceStore(workspaceSelectors.hoveredDocumentId);
   const nodes = useWorkspaceStore(workspaceSelectors.nodes);
+  const edges = useWorkspaceStore(workspaceSelectors.edges);
   const messages = useWorkspaceStore(workspaceSelectors.messages);
   const draftPrompt = useWorkspaceStore(workspaceSelectors.draftPrompt);
   const attachedDocumentIds = useWorkspaceStore(workspaceSelectors.attachedDocumentIds);
@@ -48,12 +54,14 @@ export function WorkspacePage(): JSX.Element {
   const sceneState = useWorkspaceStore(workspaceSelectors.sceneState);
   const uiShellState = useWorkspaceStore(workspaceSelectors.uiShellState);
   const answerBoardState = useWorkspaceStore(workspaceSelectors.answerBoardState);
+  const sourceFilters = useWorkspaceStore(workspaceSelectors.sourceFilters);
   const setKnowledgeGraph = useWorkspaceStore((state) => state.setKnowledgeGraph);
   const setMessages = useWorkspaceStore((state) => state.setMessages);
   const addMessage = useWorkspaceStore((state) => state.addMessage);
   const updateMessage = useWorkspaceStore((state) => state.updateMessage);
   const setDraftPrompt = useWorkspaceStore((state) => state.setDraftPrompt);
   const toggleDocumentSelection = useWorkspaceStore((state) => state.toggleDocumentSelection);
+  const clearSelectedDocuments = useWorkspaceStore((state) => state.clearSelectedDocuments);
   const setHoveredDocument = useWorkspaceStore((state) => state.setHoveredDocument);
   const setActiveDocument = useWorkspaceStore((state) => state.setActiveDocument);
   const setFocusedCitation = useWorkspaceStore((state) => state.setFocusedCitation);
@@ -65,12 +73,15 @@ export function WorkspacePage(): JSX.Element {
   const setActiveStudioTab = useWorkspaceStore((state) => state.setActiveStudioTab);
   const setAnswerSectionExpanded = useWorkspaceStore((state) => state.setAnswerSectionExpanded);
   const setAnswerBoardHighlightedSource = useWorkspaceStore((state) => state.setAnswerBoardHighlightedSource);
+  const setAnswerViewMode = useWorkspaceStore((state) => state.setAnswerViewMode);
+  const setSourceFilters = useWorkspaceStore((state) => state.setSourceFilters);
   const updateChatSettings = useWorkspaceStore((state) => state.updateChatSettings);
   const setSelectedVoice = useWorkspaceStore((state) => state.setSelectedVoice);
   const clearSession = useAuthStore((state) => state.clearSession);
   const { logout: logoutMutation } = useAuthMutations();
 
   const [searchValue, setSearchValue] = useState("");
+  const [sourceSearchValue, setSourceSearchValue] = useState("");
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [trackedJobs, setTrackedJobs] = useState<Record<string, string>>({});
   const [jobStates, setJobStates] = useState<Record<string, JobRecord>>({});
@@ -80,17 +91,69 @@ export function WorkspacePage(): JSX.Element {
   const notebooksQuery = useNotebooksQuery(Boolean(notebookId));
   const notebookQuery = useNotebookQuery(notebookId, Boolean(notebookId));
   const rawSourcesQuery = useNotebookSourcesQuery(notebookId, Boolean(notebookId));
+  const filteredSourcesQuery = useNotebookSourcesFilteredQuery(
+    notebookId,
+    {
+      type: sourceFilters.types,
+      status: sourceFilters.statuses,
+      from: sourceFilters.from ?? undefined,
+      to: sourceFilters.to ?? undefined,
+      q: sourceSearchValue.trim() || undefined
+    },
+    Boolean(notebookId)
+  );
+  const sourceSearchQuery = useNotebookSourcesSearchQuery(notebookId, sourceSearchValue.trim(), Boolean(notebookId));
   const sourceMutations = useSourceMutations(notebookId);
   const sessionListQuery = useNotebookSessionsQuery(notebookId, Boolean(notebookId));
+  const activeSession = useMemo(
+    () => (sessionListQuery.data ?? []).find((session) => session.id === activeSessionId) ?? null,
+    [activeSessionId, sessionListQuery.data]
+  );
 
-  const mergedDocuments = useMemo(() => mergeSourceProgress(rawSourcesQuery.data ?? [], trackedJobs, jobStates), [jobStates, rawSourcesQuery.data, trackedJobs]);
-  const filteredDocuments = useMemo(() => filterDocuments(mergedDocuments, searchValue), [mergedDocuments, searchValue]);
+  const hasFilters = sourceFilters.types.length > 0 || sourceFilters.statuses.length > 0 || Boolean(sourceFilters.from || sourceFilters.to);
+  const activeSourceData = sourceSearchValue.trim()
+    ? sourceSearchQuery.data ?? []
+    : hasFilters
+      ? filteredSourcesQuery.data ?? []
+      : rawSourcesQuery.data ?? [];
+  const sourcesLoading = sourceSearchValue.trim()
+    ? sourceSearchQuery.isLoading
+    : hasFilters
+      ? filteredSourcesQuery.isLoading
+      : rawSourcesQuery.isLoading;
+  const baseSourceData = (rawSourcesQuery.data ?? []).length ? rawSourcesQuery.data ?? [] : activeSourceData;
+  const mergedDocuments = useMemo(() => mergeSourceProgress(baseSourceData, trackedJobs, jobStates), [baseSourceData, jobStates, trackedJobs]);
+  const visibleDocuments = useMemo(() => mergeSourceProgress(activeSourceData, trackedJobs, jobStates), [activeSourceData, trackedJobs, jobStates]);
   const sourceMap = useMemo(() => new Map(mergedDocuments.map((document) => [document.id, document])), [mergedDocuments]);
   const chatMutations = useChatMutations(notebookId, sourceMap);
   const messagesQuery = useNotebookMessagesQuery(notebookId, activeSessionId ?? "", sourceMap, Boolean(notebookId && activeSessionId));
+  const chatSearchQuery = useChatSearchQuery(notebookId, searchValue, Boolean(notebookId && searchValue.trim()));
   const podcastsQuery = useNotebookPodcastsQuery(notebookId, Boolean(notebookId));
   const podcastMutations = usePodcastMutations(notebookId);
+  const usageQuery = useNotebookUsageQuery(notebookId, Boolean(notebookId));
+  const exportMutation = useExportMutation(notebookId);
   const notebookOptions = useMemo(() => (notebooksQuery.data ?? []).map((notebook) => ({ id: notebook.id, title: notebook.title })), [notebooksQuery.data]);
+
+  useEffect(() => {
+    autoCreatedSessionRef.current = false;
+    setActiveSessionId(null);
+    clearSelectedDocuments();
+    setActiveDocument(null);
+    setHoveredDocument(null);
+    setAnswerBoardHighlightedSource(null);
+    setFocusedCitation(null);
+    setDraftPrompt("");
+    setMessages([]);
+  }, [
+    clearSelectedDocuments,
+    notebookId,
+    setActiveDocument,
+    setAnswerBoardHighlightedSource,
+    setFocusedCitation,
+    setDraftPrompt,
+    setHoveredDocument,
+    setMessages
+  ]);
 
   useEffect(() => {
     const knowledge = buildKnowledgeResult(mergedDocuments);
@@ -163,6 +226,36 @@ export function WorkspacePage(): JSX.Element {
   }, [rawSourcesQuery.data]);
 
   useEffect(() => {
+    function isTypingTarget(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tag = target.tagName.toLowerCase();
+      return tag === "input" || tag === "textarea" || target.isContentEditable;
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+      if (event.key === "/") {
+        event.preventDefault();
+        const input = document.getElementById("workspace-global-search") as HTMLInputElement | null;
+        input?.focus();
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        const input = document.getElementById("source-gallery-search") as HTMLInputElement | null;
+        input?.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
     const entries = Object.entries(trackedJobs);
     if (!entries.length) {
       return;
@@ -214,6 +307,9 @@ export function WorkspacePage(): JSX.Element {
   const activeMessage = useMemo(() => getLatestAssistantMessage(messages), [messages]);
   const timeline = useMemo(() => getAnswerTimeline(messages), [messages]);
   const insight = useMemo(() => buildInsightSnapshot(mergedDocuments), [mergedDocuments]);
+  const historyResults = useMemo(() => chatSearchQuery.data ?? [], [chatSearchQuery.data]);
+  const usageSnapshot = useMemo(() => usageQuery.data ?? null, [usageQuery.data]);
+  const sessionSummary = activeSession?.summary ?? null;
   const latestPodcast = useMemo(() => {
     const podcasts = podcastsQuery.data ?? [];
     return [...podcasts].sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())[0] ?? null;
@@ -345,6 +441,47 @@ export function WorkspacePage(): JSX.Element {
     }
   }
 
+  async function handleExport(format: "md" | "pdf"): Promise<void> {
+    if (!activeSessionId) {
+      setWorkspaceError("No active chat session to export.");
+      return;
+    }
+    setWorkspaceError(null);
+    const context = {
+      topK: chatSettings.topK,
+      similarityThreshold: chatSettings.similarityThreshold,
+      model: chatSettings.model,
+      memoryEnabled: chatSettings.memoryEnabled,
+      attachedSourceIds: attachedDocumentIds
+    };
+    try {
+      const blob = await exportMutation.mutateAsync({ sessionId: activeSessionId, format, context });
+      downloadBlob(blob, `session-${activeSessionId}.${format}`);
+    } catch (error) {
+      if (format === "pdf") {
+        try {
+          const blob = await exportMutation.mutateAsync({ sessionId: activeSessionId, format: "md", context });
+          downloadBlob(blob, `session-${activeSessionId}.md`);
+          setWorkspaceError("PDF export failed. Downloaded a Markdown report instead.");
+          return;
+        } catch (fallbackError) {
+          setWorkspaceError(fallbackError instanceof ApiError ? fallbackError.message : "Export failed.");
+          return;
+        }
+      }
+      setWorkspaceError(error instanceof ApiError ? error.message : "Export failed.");
+    }
+  }
+
+  function downloadBlob(blob: Blob, filename: string): void {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  }
+
   async function handleGeneratePodcast(): Promise<void> {
     setWorkspaceError(null);
     try {
@@ -431,6 +568,7 @@ export function WorkspacePage(): JSX.Element {
         onSearchChange={setSearchValue}
         onToggleStudio={() => toggleStudioOpen()}
         onThemeChange={(mode: ThemeMode) => setThemeMode(mode)}
+        searchPlaceholder="Search chat history"
         searchValue={searchValue}
         statusLabel={activeSessionId ? "Notebook ready" : "Preparing chat"}
         studioOpen={uiShellState.studioOpen}
@@ -446,23 +584,25 @@ export function WorkspacePage(): JSX.Element {
             activeDocumentId={activeDocumentId}
             activityMessage={workspaceError ?? activityMessage}
             canCancelJob={Boolean(activeIngestionJob)}
-            documents={filteredDocuments}
-            isLoading={rawSourcesQuery.isLoading}
+            documents={visibleDocuments}
+            isLoading={sourcesLoading}
             isUploading={sourceMutations.uploadSource.isPending || sourceMutations.ingestUrl.isPending}
             onCancelJob={handleCancelActiveJob}
             onDeleteDocument={(sourceId) => void handleDeleteSource(sourceId)}
             onHoverDocument={setHoveredDocument}
             onIngestUrl={handleIngestUrl}
             onOpenDocument={(sourceId) => navigate(`/notebooks/${notebookId}/sources/${sourceId}`)}
-            onSearchChange={setSearchValue}
+            onSearchChange={setSourceSearchValue}
+            onUpdateFilters={setSourceFilters}
             onSelectDocument={(sourceId) => {
               setActiveDocument(sourceId);
               toggleDocumentSelection(sourceId);
             }}
             onUploadFile={handleUploadFile}
             previewDocument={previewDocument}
-            searchValue={searchValue}
+            searchValue={sourceSearchValue}
             selectedDocumentIds={selectedDocumentIds}
+            filters={sourceFilters}
           />
         }
         right={
@@ -472,6 +612,15 @@ export function WorkspacePage(): JSX.Element {
             documents={mergedDocuments}
             insight={insight}
             isGeneratingPodcast={podcastMutations.createPodcast.isPending || podcastPhase !== "idle" && podcastPhase !== "complete"}
+            historyQuery={searchValue}
+            historyResults={historyResults}
+            historyLoading={chatSearchQuery.isLoading}
+            onOpenHistoryResult={(sessionId) => {
+              setActiveSessionId(sessionId);
+              setActiveStudioTab("chat");
+            }}
+            sessionSummary={sessionSummary}
+            usage={usageSnapshot}
             onGeneratePodcast={handleGeneratePodcast}
             onTabChange={setActiveStudioTab}
             onRetryPodcast={handleRetryPodcast}
@@ -494,30 +643,26 @@ export function WorkspacePage(): JSX.Element {
           attachedCount={attachedDocumentIds.length}
           documents={mergedDocuments}
           draftPrompt={draftPrompt}
+          edges={edges}
           highlightedSourceId={answerBoardState.highlightedSourceId}
           isSending={chatMutations.sendMessage.isPending}
           nodes={nodes}
           onCitationHover={handleCitationHover}
           onCitationOpen={handleCitationOpen}
           onDraftChange={setDraftPrompt}
+          onExport={(format) => void handleExport(format)}
           onNodeHover={handleNodeHover}
           onNodeSelect={(node) => handleNodeSelect(node.id)}
           onSubmit={handleSubmitPrompt}
           onToggleSection={(section, expanded) => setAnswerSectionExpanded(section, expanded)}
+          onViewChange={setAnswerViewMode}
           selectedDocumentIds={selectedDocumentIds}
           timeline={timeline}
+          viewMode={answerBoardState.viewMode}
         />
       </WorkspaceShell>
     </div>
   );
-}
-
-function filterDocuments(documents: SourceDocument[], searchValue: string): SourceDocument[] {
-  const term = searchValue.trim().toLowerCase();
-  if (!term) {
-    return documents;
-  }
-  return documents.filter((document) => document.title.toLowerCase().includes(term) || document.summary.toLowerCase().includes(term));
 }
 
 function sessionStorageKey(notebookId: string): string {
