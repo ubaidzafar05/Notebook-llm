@@ -26,32 +26,7 @@ export function WorkspaceShell({
   return (
     <>
       <main className="mx-auto w-full max-w-[1760px] px-4 pb-8 pt-5 sm:px-6 lg:pb-10">
-        <div
-          className="grid items-start gap-6"
-          style={{
-            gridTemplateColumns: galleryCollapsed ? "0px 1fr" : "var(--gallery-rail-width) 1fr",
-          }}
-        >
-          {/* Gallery rail — collapsible */}
-          <div className="hidden xl:block">
-            <motion.aside
-              aria-label="Source gallery"
-              className={cn(
-                "h-full w-[var(--gallery-rail-width)]",
-                galleryCollapsed && "pointer-events-none"
-              )}
-              initial={false}
-              animate={{
-                x: galleryCollapsed ? -320 : 0,
-                opacity: galleryCollapsed ? 0 : 1,
-              }}
-              transition={springs.galleryToggle}
-              style={{ willChange: "transform" }}
-            >
-              <div className="min-w-[280px] space-y-4">{left}</div>
-            </motion.aside>
-          </div>
-
+        <div className="flex items-start gap-4">
           {/* Gallery toggle for desktop */}
           <div className="hidden pt-1 xl:block">
             <Button
@@ -69,7 +44,7 @@ export function WorkspaceShell({
           </div>
 
           {/* Center — Answer Board (dominant) */}
-          <section className="min-w-0">
+          <section className="min-w-0 flex-1">
             <div className="mx-auto max-w-[var(--answer-board-max-width)]">{children}</div>
           </section>
         </div>
@@ -77,6 +52,34 @@ export function WorkspaceShell({
         {/* Mobile source gallery — shown below center on small screens */}
         <div className="mt-6 xl:hidden">{left}</div>
       </main>
+
+      {/* Off-canvas gallery rail (desktop) */}
+      <AnimatePresence>
+        {!galleryCollapsed ? (
+          <motion.button
+            aria-label="Close source gallery"
+            className="fixed inset-0 z-30 hidden bg-[color:var(--studio-overlay)] xl:block"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            type="button"
+            onClick={onToggleGallery}
+          />
+        ) : null}
+      </AnimatePresence>
+      <motion.aside
+        aria-label="Source gallery"
+        className={cn(
+          "fixed left-0 top-0 z-40 hidden h-screen w-[var(--gallery-rail-width)] px-4 pb-6 pt-[80px] xl:block",
+          galleryCollapsed && "pointer-events-none"
+        )}
+        initial={false}
+        animate={{ x: galleryCollapsed ? -360 : 0, opacity: galleryCollapsed ? 0 : 1 }}
+        transition={springs.galleryToggle}
+        style={{ willChange: "transform" }}
+      >
+        <div className="min-w-[280px] space-y-4">{left}</div>
+      </motion.aside>
 
       {/* Studio overlay */}
       <AnimatePresence>

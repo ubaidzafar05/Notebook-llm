@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Edit3, Loader2, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { Edit3, Loader2, Pin, PinOff, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useAuthMutations, useNotebookMutations, useNotebooksQuery } from "@/hooks/use-workspace-queries";
@@ -40,19 +40,29 @@ export function NotebooksPage(): JSX.Element {
     return notebooks.filter((notebook) => notebook.title.toLowerCase().includes(term) || (notebook.description ?? "").toLowerCase().includes(term));
   }, [notebooks, searchValue]);
 
+  const unpinnedNotebooks = useMemo(() => filteredNotebooks.filter((notebook) => !notebook.isPinned), [filteredNotebooks]);
+
   const featuredNotebookIds = useMemo(() => {
-    return [...filteredNotebooks]
+    return [...unpinnedNotebooks]
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 2)
       .map((notebook) => notebook.id);
-  }, [filteredNotebooks]);
+  }, [unpinnedNotebooks]);
 
-  const pinnedNotebooks = useMemo(() => filteredNotebooks.filter((notebook) => notebook.isDefault), [filteredNotebooks]);
+  const pinnedNotebooks = useMemo(() => {
+    return filteredNotebooks
+      .filter((notebook) => notebook.isPinned)
+      .sort((a, b) => {
+        const aTime = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+        const bTime = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+        return bTime - aTime;
+      });
+  }, [filteredNotebooks]);
   const lastOpenedNotebooks = useMemo(() => {
-    return [...filteredNotebooks]
+    return [...unpinnedNotebooks]
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 4);
-  }, [filteredNotebooks]);
+  }, [unpinnedNotebooks]);
 
   const emptyState = !notebooksQuery.isLoading && filteredNotebooks.length === 0;
 
@@ -102,6 +112,15 @@ export function NotebooksPage(): JSX.Element {
     }
     try {
       await notebookMutations.deleteNotebook.mutateAsync(notebookId);
+    } catch (cause) {
+      setError(resolveErrorMessage(cause));
+    }
+  }
+
+  async function handleTogglePin(notebookId: string, nextPinned: boolean): Promise<void> {
+    setError(null);
+    try {
+      await notebookMutations.updateNotebook.mutateAsync({ notebookId, title: undefined, description: undefined, isPinned: nextPinned });
     } catch (cause) {
       setError(resolveErrorMessage(cause));
     }
@@ -188,6 +207,7 @@ export function NotebooksPage(): JSX.Element {
                       onEditSave={() => void handleSaveEdit(notebook.id)}
                       onEditCancel={() => setEditingId(null)}
                       onDelete={() => void handleDeleteNotebook(notebook.id)}
+                      onTogglePin={() => void handleTogglePin(notebook.id, !notebook.isPinned)}
                       onOpen={() => navigate(`/notebooks/${notebook.id}`)}
                       reduceMotion={reduceMotion}
                     />
@@ -229,7 +249,7 @@ export function NotebooksPage(): JSX.Element {
                     animate: { opacity: 1, transition: { staggerChildren: 0.08 } },
                   }}
                 >
-                  {filteredNotebooks.map((notebook) => (
+                  {unpinnedNotebooks.map((notebook) => (
                     <NotebookCard
                       key={notebook.id}
                       notebook={notebook}
@@ -247,6 +267,7 @@ export function NotebooksPage(): JSX.Element {
                       onEditSave={() => void handleSaveEdit(notebook.id)}
                       onEditCancel={() => setEditingId(null)}
                       onDelete={() => void handleDeleteNotebook(notebook.id)}
+                      onTogglePin={() => void handleTogglePin(notebook.id, !notebook.isPinned)}
                       onOpen={() => navigate(`/notebooks/${notebook.id}`)}
                       reduceMotion={reduceMotion}
                       className={cn(featuredNotebookIds.includes(notebook.id) && "md:col-span-2")}
@@ -257,9 +278,9 @@ export function NotebooksPage(): JSX.Element {
             </motion.section>
           </div>
 
-          <aside className="relative">
+          <aside className="relative space-y-6">
             <motion.div
-              className="sticky top-24 rounded-[28px] border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-5 shadow-panel"
+              className="rounded-[28px] border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-5 shadow-panel"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0, transition: springs.panelMaterialize }}
             >
@@ -295,11 +316,11 @@ export function NotebooksPage(): JSX.Element {
 
             {lastOpenedNotebooks.length > 0 ? (
               <motion.div
-                className="mt-6 rounded-[28px] border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-5 shadow-panel"
+                className="rounded-[28px] border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-5 shadow-panel"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0, transition: springs.panelMaterialize }}
               >
-                <p className="text-xs uppercase tracking-[0.28em] text-[color:var(--text-kicker)]">Last opened</p>
+                <p className="text-xs uppercase tracking-[0.28em] text-[color:var(--text-kicker)]">Recently visited</p>
                 <div className="mt-4 space-y-3">
                   {lastOpenedNotebooks.map((notebook) => (
                     <button
@@ -315,6 +336,19 @@ export function NotebooksPage(): JSX.Element {
                 </div>
               </motion.div>
             ) : null}
+
+            <motion.div
+              className="rounded-[28px] border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-5 shadow-panel"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0, transition: springs.panelMaterialize }}
+            >
+              <p className="text-xs uppercase tracking-[0.28em] text-[color:var(--text-kicker)]">Tips</p>
+              <ul className="mt-4 space-y-2 text-sm text-[color:var(--text-muted)]">
+                <li className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] px-3 py-2">Pin notebooks to keep them at the top.</li>
+                <li className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] px-3 py-2">Use search to jump between research threads quickly.</li>
+                <li className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] px-3 py-2">Rename notebooks to keep your library tidy.</li>
+              </ul>
+            </motion.div>
           </aside>
         </section>
       </main>
@@ -330,7 +364,7 @@ function resolveErrorMessage(error: unknown): string {
 }
 
 type NotebookCardProps = {
-  notebook: { id: string; title: string; description: string | null; updatedAt: string; isDefault: boolean };
+  notebook: { id: string; title: string; description: string | null; updatedAt: string; isDefault: boolean; isPinned: boolean };
   featured?: boolean;
   isEditing: boolean;
   editTitle: string;
@@ -341,6 +375,7 @@ type NotebookCardProps = {
   onEditSave: () => void;
   onEditCancel: () => void;
   onDelete: () => void;
+  onTogglePin: () => void;
   onOpen: () => void;
   reduceMotion: boolean;
   className?: string;
@@ -358,6 +393,7 @@ function NotebookCard({
   onEditSave,
   onEditCancel,
   onDelete,
+  onTogglePin,
   onOpen,
   reduceMotion,
   className,
@@ -386,14 +422,17 @@ function NotebookCard({
         </div>
       ) : (
         <>
-          <div className="flex items-start justify-between gap-3">
-            <div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
               <p className="text-xs uppercase tracking-[0.24em] text-[color:var(--text-kicker)]">
-                {notebook.isDefault ? "Default notebook" : "Notebook"}
+                {notebook.isDefault ? "Default notebook" : notebook.isPinned ? "Pinned" : "Notebook"}
               </p>
               <h3 className="mt-2 text-xl font-semibold text-[color:var(--text-primary)]">{notebook.title}</h3>
             </div>
             <div className="flex gap-2 opacity-0 transition group-hover:opacity-100">
+              <Button aria-label={`Pin ${notebook.title}`} size="sm" variant="ghost" onClick={onTogglePin}>
+                {notebook.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+              </Button>
               <Button aria-label={`Rename ${notebook.title}`} size="sm" variant="ghost" onClick={onEditStart}>
                 <Edit3 className="h-4 w-4" />
               </Button>

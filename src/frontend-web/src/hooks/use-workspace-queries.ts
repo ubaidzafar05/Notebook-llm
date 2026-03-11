@@ -178,8 +178,17 @@ export function useNotebookMutations() {
       }
     }),
     updateNotebook: useMutation({
-      mutationFn: ({ notebookId, title, description }: { notebookId: string; title: string; description?: string }) =>
-        updateNotebook(notebookId, { title, description }),
+      mutationFn: ({
+        notebookId,
+        title,
+        description,
+        isPinned
+      }: {
+        notebookId: string;
+        title?: string;
+        description?: string;
+        isPinned?: boolean;
+      }) => updateNotebook(notebookId, { title: title ?? null, description, isPinned }),
       onSuccess: async (_, variables) => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["notebooks"] }),
