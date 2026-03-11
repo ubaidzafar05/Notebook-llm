@@ -57,6 +57,8 @@ Icon
 ._*
 
 # Project Specific
+outputs/
+src/frontend-web/vite.config.js
 outputs/podcasts/*
 data/uploads/*
 data/processed/*
