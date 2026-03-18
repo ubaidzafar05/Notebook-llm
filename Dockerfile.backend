@@ -1,0 +1,38 @@
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir uv==0.6.6
+
+COPY pyproject.toml uv.lock ./
+COPY src/backend src/backend
+COPY src/frontend src/frontend
+COPY alembic alembic
+COPY alembic.ini .
+COPY scripts scripts
+
+RUN uv sync --no-dev --frozen
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/src /app/src
+COPY --from=builder /app/alembic /app/alembic
+COPY --from=builder /app/alembic.ini /app/alembic.ini
+COPY --from=builder /app/scripts /app/scripts
+COPY --from=builder /app/pyproject.toml /app/pyproject.toml
+
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+RUN mkdir -p /app/outputs/podcasts /app/outputs/uploads /app/data/processed
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--app-dir", "src/backend", "--host", "0.0.0.0", "--port", "8000"]

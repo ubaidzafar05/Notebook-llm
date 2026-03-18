@@ -26,6 +26,7 @@ from app.jobs.queue import TaskQueue
 from app.jobs.queue_state_store import QueueStateStore
 from app.jobs.workers import process_ingestion_job
 from app.retrieval.hybrid_retriever import HybridRetriever
+from app.retrieval.semantic_cache import SemanticCacheService
 from app.vector_store.milvus_client import VectorStoreClient
 from schemas.source import SourceCreateUrlRequest
 
@@ -451,6 +452,7 @@ def delete_source(
 
     vector_store = _vector_store_from_request(request)
     vector_store.delete_source(user_id=user.id, source_id=source.id)
+    SemanticCacheService().invalidate_for_source(source.id)
     repo.delete(source)
     return success_response(data={"deleted": True, "source_id": source_id}, request_id=request_id)
 
@@ -470,6 +472,7 @@ def delete_notebook_source(
         return error_response(code="NOT_FOUND", message="Source not found", request_id=request_id, status_code=404)
     vector_store = _vector_store_from_request(request)
     vector_store.delete_source(user_id=user.id, source_id=source.id)
+    SemanticCacheService().invalidate_for_source(source.id)
     repo.delete(source)
     return success_response(data={"deleted": True, "source_id": source_id}, request_id=request_id)
 

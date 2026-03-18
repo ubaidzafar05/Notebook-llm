@@ -118,7 +118,8 @@ class AudioParser:
             )
 
         status_url = f"https://api.assemblyai.com/v2/transcript/{transcript_id}"
-        for _ in range(40):
+        poll_delay = 1.5
+        for _attempt in range(60):
             try:
                 poll = requests.get(status_url, headers=headers, timeout=20)
                 poll.raise_for_status()
@@ -156,7 +157,8 @@ class AudioParser:
                     status_code=502,
                     details={"failure_stage": "parse"},
                 )
-            sleep(1.5)
+            sleep(poll_delay)
+            poll_delay = min(poll_delay * 1.3, 10.0)
         raise AppError(
             code="AUDIO_TIMEOUT",
             message="AssemblyAI transcription timeout",

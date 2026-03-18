@@ -46,6 +46,9 @@ dev = [
   "mypy==1.14.1",
   "ruff==0.9.3"
 ]
+rerank = [
+  "sentence-transformers>=2.7.0",
+]
 
 [build-system]
 requires = ["hatchling==1.27.0"]

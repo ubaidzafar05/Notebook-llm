@@ -14,7 +14,9 @@ from starlette.responses import Response
 
 from app.api.v1.auth_routes import router as auth_router
 from app.api.v1.chat_routes import router as chat_router
+from app.api.v1.export_routes import router as export_router
 from app.api.v1.health_routes import router as health_router
+from app.api.v1.memory_routes import router as memory_router
 from app.api.v1.notebook_routes import router as notebook_router
 from app.api.v1.podcast_routes import router as podcast_router
 from app.api.v1.source_routes import router as source_router
@@ -156,3 +158,5 @@ app.include_router(notebook_router)
 app.include_router(source_router)
 app.include_router(chat_router)
 app.include_router(podcast_router)
+app.include_router(memory_router)
+app.include_router(export_router)

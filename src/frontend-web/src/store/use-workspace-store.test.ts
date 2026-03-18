@@ -70,3 +70,44 @@ describe("workspace store", () => {
     expect(useWorkspaceStore.getState().sceneState.nodes[0]?.position).toEqual({ x: 48, y: 42, z: 0 });
   });
 });
+
+describe("gallery collapsed state", () => {
+  beforeEach(() => {
+    useWorkspaceStore.getState().setGalleryCollapsed(false);
+  });
+
+  it("defaults to not collapsed", () => {
+    expect(useWorkspaceStore.getState().uiShellState.galleryCollapsed).toBe(false);
+  });
+
+  it("sets gallery collapsed to true", () => {
+    useWorkspaceStore.getState().setGalleryCollapsed(true);
+    expect(useWorkspaceStore.getState().uiShellState.galleryCollapsed).toBe(true);
+  });
+
+  it("toggles gallery collapsed state", () => {
+    expect(useWorkspaceStore.getState().uiShellState.galleryCollapsed).toBe(false);
+    useWorkspaceStore.getState().toggleGalleryCollapsed();
+    expect(useWorkspaceStore.getState().uiShellState.galleryCollapsed).toBe(true);
+    useWorkspaceStore.getState().toggleGalleryCollapsed();
+    expect(useWorkspaceStore.getState().uiShellState.galleryCollapsed).toBe(false);
+  });
+});
+
+describe("theme mode", () => {
+  it("defaults to everforest-light", () => {
+    expect(useWorkspaceStore.getState().studioState.themeMode).toBe("everforest-light");
+  });
+
+  it("cycles between light and dark", () => {
+    useWorkspaceStore.getState().cycleThemeMode();
+    expect(useWorkspaceStore.getState().studioState.themeMode).toBe("everforest-dark");
+    useWorkspaceStore.getState().cycleThemeMode();
+    expect(useWorkspaceStore.getState().studioState.themeMode).toBe("everforest-light");
+  });
+
+  it("sets theme mode directly", () => {
+    useWorkspaceStore.getState().setThemeMode("everforest-dark");
+    expect(useWorkspaceStore.getState().studioState.themeMode).toBe("everforest-dark");
+  });
+});

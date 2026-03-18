@@ -2,7 +2,6 @@ import pytest
 
 from app.core.redis_client import _get_test_redis
 from app.retrieval.semantic_cache import SemanticCacheService
-from schemas.citation import Citation
 
 
 def test_semantic_cache_hit_miss(monkeypatch: pytest.MonkeyPatch) -> None:

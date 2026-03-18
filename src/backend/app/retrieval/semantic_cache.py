@@ -53,6 +53,26 @@ class SemanticCacheService:
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to write to SemanticCache: %s", exc)
 
+    def invalidate_for_source(self, source_id: str) -> None:
+        """Flush cache keys that may reference chunks from a deleted source.
+        Since cache keys are hash-based and we cannot enumerate which keys
+        reference a given source, we perform a conservative full flush of
+        the semantic_cache namespace when a source is deleted."""
+        if self.redis is None:
+            return
+        prefix = namespaced_key("semantic_cache", "")
+        try:
+            cursor: int = 0
+            while True:
+                cursor, keys = self.redis.scan(cursor=cursor, match=f"{prefix}*", count=200)
+                if keys:
+                    self.redis.delete(*keys)
+                if cursor == 0:
+                    break
+            logger.info("SemanticCache invalidated for deleted source %s", source_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("SemanticCache invalidation failed: %s", exc)
+
     def _build_key(self, question: str, chunk_ids: list[str]) -> str:
         normalized_q = question.strip().lower()
         context_fingerprint = ",".join(sorted(chunk_ids))

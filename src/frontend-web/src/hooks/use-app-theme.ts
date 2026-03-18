@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { useWorkspaceStore, type ThemeMode } from "@/store/use-workspace-store";
-import { canUseWebGL } from "@/lib/utils";
 
 const THEME_STORAGE_KEY = "notebooklm-theme-mode";
-const themeModes: ThemeMode[] = ["dusk-indigo", "linen-light", "notebook-dark"];
+const themeModes: ThemeMode[] = ["everforest-light", "everforest-dark"];
 
 export function useAppTheme(): void {
   const themeMode = useWorkspaceStore((state) => state.studioState.themeMode);
@@ -19,7 +18,7 @@ export function useAppTheme(): void {
   }, [setThemeMode]);
 
   useEffect(() => {
-    const isDarkTheme = themeMode !== "linen-light";
+    const isDarkTheme = themeMode === "everforest-dark";
     document.documentElement.dataset.theme = themeMode;
     document.body.dataset.theme = themeMode;
     document.documentElement.classList.toggle("dark", isDarkTheme);
@@ -36,6 +35,6 @@ export function useAppTheme(): void {
   }, [setReducedMotion]);
 
   useEffect(() => {
-    setWebglReady(canUseWebGL());
+    setWebglReady(false);
   }, [setWebglReady]);
 }

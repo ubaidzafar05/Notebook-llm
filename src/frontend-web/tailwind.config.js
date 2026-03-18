@@ -33,14 +33,14 @@ export default {
         "3xl": "2rem"
       },
       boxShadow: {
-        panel: "0 18px 56px rgba(33, 23, 53, 0.18), inset 0 1px 0 rgba(255,255,255,0.48)",
-        glow: "0 10px 28px rgba(129, 112, 212, 0.16)",
+        panel: "var(--shadow-2)",
+        glow: "var(--shadow-soft)",
         inset: "inset 0 1px 0 rgba(255,255,255,0.44)",
-        "soft-card": "0 8px 24px rgba(31, 20, 50, 0.14)"
+        "soft-card": "var(--shadow-1)",
+        "strong-card": "var(--shadow-strong)"
       },
       fontFamily: {
-        sans: ['"Manrope"', "ui-sans-serif", "system-ui", "sans-serif"],
-        serif: ['"Fraunces"', "ui-serif", "Georgia", "serif"],
+        sans: ['"Manrope"', "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
         mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"]
       }
     }

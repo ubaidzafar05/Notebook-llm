@@ -79,9 +79,20 @@ def _compute_confidence(
 ) -> Literal["low", "medium", "high"]:
     if not contexts or not citations:
         return "low"
-    if len(citations) >= 3:
+    # Factor 1: citation count
+    citation_score = min(len(citations), 5) / 5.0
+    # Factor 2: average citation quality score (if available)
+    scored = [c.score for c in citations if c.score is not None and c.score > 0]
+    avg_score = sum(scored) / len(scored) if scored else 0.0
+    # Factor 3: coverage — cited chunks as fraction of retrieved contexts
+    cited_ids = {c.chunk_id for c in citations}
+    coverage = len(cited_ids.intersection(ctx.chunk_id for ctx in contexts)) / max(len(contexts), 1)
+    composite = (citation_score * 0.4) + (avg_score * 0.3) + (coverage * 0.3)
+    if composite >= 0.55:
         return "high"
-    return "medium"
+    if composite >= 0.25:
+        return "medium"
+    return "low"
 
 
 def _support_score(

@@ -31,9 +31,8 @@ type TopChromeProps = {
 };
 
 const themeOptions: Array<{ value: ThemeMode; label: string }> = [
-  { value: "dusk-indigo", label: "Dusk" },
-  { value: "linen-light", label: "Linen" },
-  { value: "notebook-dark", label: "Ink" },
+  { value: "everforest-light", label: "Light" },
+  { value: "everforest-dark", label: "Dark" },
 ];
 
 export function TopChrome({

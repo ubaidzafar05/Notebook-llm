@@ -17,7 +17,7 @@ type ChatSettings = {
   memoryEnabled: boolean;
 };
 
-export type ThemeMode = "notebook-dark" | "linen-light" | "dusk-indigo";
+export type ThemeMode = "everforest-light" | "everforest-dark";
 
 type DocumentState = {
   documents: SourceDocument[];
@@ -163,7 +163,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     podcastScript: "",
     podcastAudioUrl: null,
     waveform: [],
-    themeMode: "dusk-indigo"
+    themeMode: "everforest-light"
   },
   uiShellState: {
     studioOpen: false,
@@ -251,9 +251,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   setThemeMode: (themeMode) => set((state) => ({ studioState: { ...state.studioState, themeMode } })),
   cycleThemeMode: () =>
     set((state) => {
-      const order: ThemeMode[] = ["dusk-indigo", "linen-light", "notebook-dark"];
+      const order: ThemeMode[] = ["everforest-light", "everforest-dark"];
       const index = order.indexOf(state.studioState.themeMode);
-      const themeMode = order[(index + 1) % order.length] ?? "notebook-dark";
+      const themeMode = order[(index + 1) % order.length] ?? "everforest-light";
       return {
         studioState: {
           ...state.studioState,
