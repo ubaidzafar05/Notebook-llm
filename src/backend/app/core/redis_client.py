@@ -120,6 +120,7 @@ class _MemoryPipeline:
 class _InMemoryRedis:
     def __init__(self) -> None:
         self.rows: dict[str, _MemoryValue] = {}
+        self.sets: dict[str, set[str]] = {}
 
     def ping(self) -> bool:
         return True
@@ -146,10 +147,36 @@ class _InMemoryRedis:
     def exists(self, key: str) -> int:
         return 1 if self.get(key) is not None else 0
 
-    def delete(self, key: str) -> int:
-        existed = 1 if key in self.rows else 0
-        self.rows.pop(key, None)
-        return existed
+    def delete(self, *keys: str) -> int:
+        count = 0
+        for key in keys:
+            if key in self.rows:
+                count += 1
+            self.rows.pop(key, None)
+            self.sets.pop(key, None)
+        return count
+
+    def sadd(self, key: str, *members: str) -> int:
+        if key not in self.sets:
+            self.sets[key] = set()
+        before = len(self.sets[key])
+        self.sets[key].update(members)
+        return len(self.sets[key]) - before
+
+    def smembers(self, key: str) -> set[str]:
+        return set(self.sets.get(key, set()))
+
+    def expire(self, key: str, ttl_seconds: int) -> bool:
+        # For sets tracked in self.sets — just a no-op in tests
+        return True
+
+    def scan(self, cursor: int = 0, match: str = "", count: int = 100) -> tuple[int, list[str]]:
+        import fnmatch
+
+        pattern = match or "*"
+        all_keys = list(self.rows.keys()) + list(self.sets.keys())
+        matched = [k for k in all_keys if fnmatch.fnmatch(k, pattern)]
+        return 0, matched
 
     def pipeline(self, transaction: bool = True) -> _MemoryPipeline:
         return _MemoryPipeline(self)

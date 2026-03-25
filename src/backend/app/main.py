@@ -24,6 +24,8 @@ from app.core.config import get_settings, validate_required_runtime_settings
 from app.core.exceptions import AppError
 from app.core.health_checks import collect_dependency_health, overall_system_state
 from app.core.logging import configure_logging
+from app.core.metrics import metrics_middleware
+from app.core.metrics import router as metrics_router
 from app.core.redis_client import get_async_redis_client
 from app.db.session import init_db
 from app.vector_store.milvus_client import VectorStoreClient
@@ -86,6 +88,9 @@ async def add_request_id(request: Request, call_next: callable) -> Response:
     response = await call_next(request)
     response.headers["x-request-id"] = request_id
     return response
+
+
+app.middleware("http")(metrics_middleware)
 
 
 @app.exception_handler(RequestValidationError)
@@ -153,6 +158,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 
 app.include_router(health_router)
+app.include_router(metrics_router)
 app.include_router(auth_router)
 app.include_router(notebook_router)
 app.include_router(source_router)

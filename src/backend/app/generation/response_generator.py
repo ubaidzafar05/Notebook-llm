@@ -57,7 +57,8 @@ class ResponseGenerator:
             question=question,
             chunk_ids=chunk_ids,
             answer=final_answer,
-            citations=[c.model_dump() for c in citations]
+            citations=[c.model_dump() for c in citations],
+            source_ids=list({c.source_id for c in citations}),
         )
 
         return final_answer, model_info, confidence

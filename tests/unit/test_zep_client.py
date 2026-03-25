@@ -3,12 +3,13 @@ from __future__ import annotations
 import requests
 import pytest
 
-from app.core.exceptions import AppError
 from app.db.session import SessionLocal
 from app.memory.memory_service import MemoryService
 
 
-def test_store_message_raises_typed_error_when_zep_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_store_message_falls_back_gracefully_when_zep_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When Zep is unreachable, store_message should log a warning and NOT raise."""
+
     def _raise_timeout(*args: object, **kwargs: object) -> object:
         _ = (args, kwargs)
         raise requests.Timeout("timeout")
@@ -17,15 +18,15 @@ def test_store_message_raises_typed_error_when_zep_times_out(monkeypatch: pytest
     db = SessionLocal()
     try:
         service = MemoryService(db)
-        with pytest.raises(AppError) as error:
-            service.store_message(user_id="user1", session_id="session1", role="user", content="hello")
+        # Should NOT raise — graceful fallback
+        service.store_message(user_id="user1", session_id="session1", role="user", content="hello")
     finally:
         db.close()
-    assert error.value.code == "ZEP_UPSERT_TIMEOUT"
-    assert error.value.status_code == 504
 
 
-def test_summarize_session_raises_typed_error_when_zep_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_summarize_session_falls_back_to_local_when_zep_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When Zep is unreachable, summarize_session should return local fallback."""
+
     def _raise_request_error(*args: object, **kwargs: object) -> object:
         _ = (args, kwargs)
         raise requests.RequestException("network failure")
@@ -34,9 +35,8 @@ def test_summarize_session_raises_typed_error_when_zep_unreachable(monkeypatch: 
     db = SessionLocal()
     try:
         service = MemoryService(db)
-        with pytest.raises(AppError) as error:
-            service.summarize_session(user_id="user1", session_id="session1")
+        summary, provider = service.summarize_session(user_id="user1", session_id="session1")
+        assert provider == "local"
+        assert isinstance(summary, str)
     finally:
         db.close()
-    assert error.value.code == "ZEP_UNREACHABLE"
-    assert error.value.status_code == 502
