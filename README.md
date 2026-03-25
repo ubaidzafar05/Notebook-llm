@@ -103,10 +103,10 @@ All responses use:
   - `200` with `status=ready` when required deps (`postgres`, `redis`, `milvus`, `zep`, `provider_gate`) are healthy
   - `503` with `status=not_ready` otherwise
 
-## Zep Requirement
-- Zep is mandatory in runtime behavior.
-- Missing or invalid `ZEP_API_KEY` / `ZEP_PROJECT_ID` causes startup failure.
-- Memory writes/summaries fail with typed errors when Zep is unavailable; there is no local fallback path.
+## Zep (Optional)
+- Zep is **optional** — missing credentials trigger a warning, not a crash.
+- When Zep is unavailable, memory operations fall back to local DB summaries.
+- For full temporal knowledge graph memory, set `ZEP_API_KEY` and `ZEP_PROJECT_ID`.
 
 ## Provider Fallback Behavior
 - Primary generation path: Ollama (`OLLAMA_BASE_URL` + model config).
@@ -208,6 +208,16 @@ Use this before calling the project production-ready for daily use.
 - OAuth callback no longer places bearer tokens in browser URL parameters.
 
 ## Changelog
+- **v1.0.0** — Production-ready release
+  - Everforest light/dark theme (CSS variable architecture)
+  - Hardened MemoryService with graceful Zep fallback to local DB
+  - Targeted semantic cache invalidation via Redis reverse index
+  - Prometheus metrics endpoint (`GET /metrics`)
+  - Non-root Docker containers with HEALTHCHECK
+  - CI pipeline: lint → test → build → Docker build → security scan
+  - 52 backend tests, 10 frontend tests
+  - Zep made optional (warns, doesn't crash)
+  - Deployment guide (`DEPLOY.md`) and operations runbook (`RUNBOOK.md`)
 - Added full greenfield scaffold for FastAPI backend + Streamlit UI with dual LLM routing.
 - Implemented authentication (JWT + Google OAuth), source ingestion, chat, memory, and podcast endpoints.
 - Added notebook-centered React workspace with notebook, source, chat, and studio panels.

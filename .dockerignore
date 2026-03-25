@@ -2,7 +2,6 @@
 .git
 .gitignore
 .github
-README.md
 task.md
 implementation_plan.md
 walkthrough.md
@@ -34,6 +33,3 @@ specs/
 
 # macOS
 .DS_Store
-
-# UV
-uv.lock
