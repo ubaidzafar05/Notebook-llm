@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir uv==0.6.6
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 COPY src/backend src/backend
 COPY src/frontend src/frontend
 COPY alembic alembic
@@ -15,10 +15,13 @@ RUN uv sync --no-dev --frozen
 
 FROM python:3.11-slim
 
+RUN groupadd --gid 1001 appuser && \
+    useradd --uid 1001 --gid appuser --shell /bin/false appuser
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
+    ffmpeg curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.venv /app/.venv
@@ -31,7 +34,13 @@ COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-RUN mkdir -p /app/outputs/podcasts /app/outputs/uploads /app/data/processed
+RUN mkdir -p /app/outputs/podcasts /app/outputs/uploads /app/data/processed && \
+    chown -R appuser:appuser /app/outputs /app/data
+
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
 EXPOSE 8000
 

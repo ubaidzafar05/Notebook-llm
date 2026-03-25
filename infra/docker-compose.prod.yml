@@ -97,6 +97,7 @@ services:
       DATABASE_URL: postgresql+psycopg://notebooklm:${POSTGRES_PASSWORD:-notebooklm}@postgres:5432/notebooklm
       REDIS_URL: redis://redis:6379/0
       MILVUS_URI: http://milvus-standalone:19530
+      ENVIRONMENT: production
     volumes:
       - ../outputs:/app/outputs
       - ../data:/app/data
@@ -111,13 +112,24 @@ services:
       test:
         [
           "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')",
+          "curl",
+          "-f",
+          "http://localhost:8000/api/v1/health",
         ]
       interval: 15s
       timeout: 10s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   rq-worker:
     build:
