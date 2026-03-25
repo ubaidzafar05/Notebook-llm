@@ -85,11 +85,18 @@ def reset_settings_cache() -> None:
 
 
 def validate_required_runtime_settings(settings: Settings) -> None:
-    if not settings.zep_api_key:
-        raise RuntimeError("ZEP_API_KEY is required")
-    if not settings.zep_project_id:
-        raise RuntimeError("ZEP_PROJECT_ID is required")
+    import logging
+
+    _logger = logging.getLogger(__name__)
+
+    if not settings.zep_api_key or not settings.zep_project_id:
+        _logger.warning(
+            "Zep credentials missing — memory will use local DB fallback. "
+            "Set ZEP_API_KEY and ZEP_PROJECT_ID for full memory features."
+        )
+        return
+
     try:
         UUID(settings.zep_project_id)
-    except ValueError as exc:
-        raise RuntimeError("ZEP_PROJECT_ID must be a valid UUID") from exc
+    except ValueError:
+        _logger.warning("ZEP_PROJECT_ID is not a valid UUID — Zep integration disabled.")
