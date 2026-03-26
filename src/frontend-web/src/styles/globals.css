@@ -9,36 +9,37 @@
   :root[data-theme="everforest-light"] {
     --radius: 14px;
 
-    --canvas: #FDF6E3;
-    --surface-1: #FFFBEF;
-    --surface-2: #F4ECD8;
-    --surface-3: #EDE5CF;
+    --canvas: #fdf6e3;
+    --surface-1: #fffbef;
+    --surface-2: #f4ecd8;
+    --surface-3: #ede5cf;
     --surface-glass: rgba(253, 246, 227, 0.82);
-    --surface-elevated: #FFFBEF;
+    --surface-elevated: #fffbef;
 
-    --text-primary: #5C6A72;
+    --text-primary: #5c6a72;
     --text-hero: #4a5860;
     --text-secondary: #708090;
-    --text-muted: #939F91;
+    --text-muted: #939f91;
     --text-kicker: #a3ad9f;
 
-    --border-soft: rgba(92, 106, 114, 0.10);
+    --border-soft: rgba(92, 106, 114, 0.1);
     --border-glass: rgba(92, 106, 114, 0.14);
-    --border-active: #93B259;
+    --border-active: #93b259;
     --border-strong: rgba(92, 106, 114, 0.18);
 
-    --accent-color: #93B259;
-    --accent-strong: #7DA23A;
-    --accent-soft: rgba(147, 178, 89, 0.10);
+    --accent-color: #93b259;
+    --accent-strong: #7da23a;
+    --accent-soft: rgba(147, 178, 89, 0.1);
 
-    --status-teal: #83C092;
-    --status-amber: #DBBC7F;
-    --status-error: #E67E80;
+    --status-teal: #83c092;
+    --status-amber: #dbbc7f;
+    --status-error: #e67e80;
 
-    --shadow-1: 0 2px 12px rgba(92, 106, 114, 0.06), 0 1px 3px rgba(92, 106, 114, 0.04);
+    --shadow-1:
+      0 2px 12px rgba(92, 106, 114, 0.06), 0 1px 3px rgba(92, 106, 114, 0.04);
     --shadow-2: 0 8px 24px rgba(92, 106, 114, 0.08);
     --shadow-soft: 0 4px 16px rgba(92, 106, 114, 0.05);
-    --shadow-strong: 0 12px 32px rgba(92, 106, 114, 0.10);
+    --shadow-strong: 0 12px 32px rgba(92, 106, 114, 0.1);
 
     --background: 42 70% 95%;
     --foreground: 195 11% 40%;
@@ -76,7 +77,7 @@
 
     --button-primary-bg: var(--accent-strong);
     --button-primary-hover: #6e9232;
-    --button-primary-text: #FFFBEF;
+    --button-primary-text: #fffbef;
     --button-secondary-bg: var(--surface-2);
     --button-secondary-hover: var(--surface-3);
     --button-secondary-text: var(--text-primary);
@@ -91,7 +92,7 @@
 
     --chip-accent-bg: rgba(147, 178, 89, 0.12);
     --chip-accent-text: var(--accent-strong);
-    --code-inline: #9A6940;
+    --code-inline: #9a6940;
     --code-block-bg: var(--surface-2);
 
     --gallery-rail-width: 300px;
@@ -118,36 +119,36 @@
   :root[data-theme="everforest-dark"] {
     --radius: 14px;
 
-    --canvas: #2D353B;
-    --surface-1: #343F44;
-    --surface-2: #3D484D;
+    --canvas: #2d353b;
+    --surface-1: #343f44;
+    --surface-2: #3d484d;
     --surface-3: #475258;
     --surface-glass: rgba(45, 53, 59, 0.85);
-    --surface-elevated: #3D484D;
+    --surface-elevated: #3d484d;
 
-    --text-primary: #D3C6AA;
+    --text-primary: #d3c6aa;
     --text-hero: #e0d5bd;
-    --text-secondary: #9DA9A0;
-    --text-muted: #7A8478;
+    --text-secondary: #9da9a0;
+    --text-muted: #7a8478;
     --text-kicker: #6b7567;
 
     --border-soft: rgba(211, 198, 170, 0.08);
     --border-glass: rgba(211, 198, 170, 0.12);
-    --border-active: #A7C080;
+    --border-active: #a7c080;
     --border-strong: rgba(211, 198, 170, 0.16);
 
-    --accent-color: #A7C080;
-    --accent-strong: #A7C080;
+    --accent-color: #a7c080;
+    --accent-strong: #a7c080;
     --accent-soft: rgba(167, 192, 128, 0.12);
 
-    --status-teal: #83C092;
-    --status-amber: #DBBC7F;
-    --status-error: #E67E80;
+    --status-teal: #83c092;
+    --status-amber: #dbbc7f;
+    --status-error: #e67e80;
 
     --shadow-1: 0 2px 12px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
     --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.35);
-    --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.20);
-    --shadow-strong: 0 12px 32px rgba(0, 0, 0, 0.40);
+    --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.2);
+    --shadow-strong: 0 12px 32px rgba(0, 0, 0, 0.4);
 
     --background: 195 15% 20%;
     --foreground: 37 22% 74%;
@@ -185,7 +186,7 @@
 
     --button-primary-bg: var(--accent-color);
     --button-primary-hover: #95b06e;
-    --button-primary-text: #2D353B;
+    --button-primary-text: #2d353b;
     --button-secondary-bg: var(--surface-2);
     --button-secondary-hover: var(--surface-3);
     --button-secondary-text: var(--text-primary);
@@ -200,7 +201,7 @@
 
     --chip-accent-bg: rgba(167, 192, 128, 0.14);
     --chip-accent-text: var(--accent-color);
-    --code-inline: #D699B6;
+    --code-inline: #d699b6;
     --code-block-bg: var(--surface-2);
 
     --gallery-rail-width: 300px;
@@ -234,9 +235,22 @@
     content: "";
     position: absolute;
     inset: -30%;
-    background: radial-gradient(circle at 20% 20%, rgba(147, 178, 89, 0.12), transparent 55%),
-      radial-gradient(circle at 80% 30%, rgba(131, 192, 146, 0.1), transparent 52%),
-      radial-gradient(circle at 60% 80%, rgba(219, 188, 127, 0.1), transparent 56%);
+    background:
+      radial-gradient(
+        circle at 20% 20%,
+        rgba(147, 178, 89, 0.12),
+        transparent 55%
+      ),
+      radial-gradient(
+        circle at 80% 30%,
+        rgba(131, 192, 146, 0.1),
+        transparent 52%
+      ),
+      radial-gradient(
+        circle at 60% 80%,
+        rgba(219, 188, 127, 0.1),
+        transparent 56%
+      );
     animation: authGlow 18s ease-in-out infinite;
     z-index: 0;
   }
@@ -299,7 +313,11 @@
     position: fixed;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(circle at center, var(--ambient-center), transparent 58%);
+    background: radial-gradient(
+      circle at center,
+      var(--ambient-center),
+      transparent 58%
+    );
     opacity: 0.3;
   }
 
@@ -355,14 +373,23 @@
 
 .skeleton-line {
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(148, 163, 140, 0.15), rgba(148, 163, 140, 0.35), rgba(148, 163, 140, 0.15));
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 140, 0.15),
+    rgba(148, 163, 140, 0.35),
+    rgba(148, 163, 140, 0.15)
+  );
   background-size: 200% 100%;
   animation: skeletonFlow 1.2s ease-in-out infinite;
 }
 
 @keyframes skeletonFlow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 100% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
