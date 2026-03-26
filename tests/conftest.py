@@ -73,10 +73,24 @@ def reset_db() -> None:
 
     redis_client._test_redis_singleton = None
     engine.dispose()
-    Base.metadata.drop_all(bind=engine)
-    with engine.begin() as connection:
-        connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
+    _reset_sqlite_test_database()
     upgrade_to_head(str(engine.url))
+
+
+def _reset_sqlite_test_database() -> None:
+    if engine.url.get_backend_name() != "sqlite":
+        Base.metadata.drop_all(bind=engine)
+        with engine.begin() as connection:
+            connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
+        return
+
+    db_path = Path(engine.url.database or "")
+    if db_path.exists():
+        db_path.unlink()
+    for suffix in ("-wal", "-shm", "-journal"):
+        sidecar = db_path.with_name(f"{db_path.name}{suffix}")
+        if sidecar.exists():
+            sidecar.unlink()
 
 
 @pytest.fixture()
