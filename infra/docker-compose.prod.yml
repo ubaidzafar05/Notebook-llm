@@ -97,7 +97,10 @@ services:
       DATABASE_URL: postgresql+psycopg://notebooklm:${POSTGRES_PASSWORD:-notebooklm}@postgres:5432/notebooklm
       REDIS_URL: redis://redis:6379/0
       MILVUS_URI: http://milvus-standalone:19530
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
       ENVIRONMENT: production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../outputs:/app/outputs
       - ../data:/app/data
@@ -144,12 +147,20 @@ services:
       DATABASE_URL: postgresql+psycopg://notebooklm:${POSTGRES_PASSWORD:-notebooklm}@postgres:5432/notebooklm
       REDIS_URL: redis://redis:6379/0
       MILVUS_URI: http://milvus-standalone:19530
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../outputs:/app/outputs
       - ../data:/app/data
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "tr '\\0' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-default'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build:
