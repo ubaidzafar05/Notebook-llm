@@ -67,3 +67,46 @@ def test_script_generator_parses_fenced_json_with_think_block(monkeypatch: pytes
     assert info["provider"] == "test"
     assert len(script.turns) == 12
     assert script.turns[0].text == "Opening."
+
+
+def test_script_generator_falls_back_when_model_returns_unlabelled_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fake_generate(*_: object, **__: object) -> tuple[str, dict[str, str]]:
+        return ("This is a prose summary without JSON or speaker labels.", {"provider": "test"})
+
+    generator = ScriptGenerator()
+    monkeypatch.setattr(generator.router, "generate", _fake_generate)
+    script, info = generator.generate(
+        title="Fallback",
+        source_context="Source: Audit\nType: text\nKey excerpts:\n1. Postgres stores notebook state.\n2. Milvus stores retrieval vectors.",
+    )
+    assert info["provider"] == "test"
+    assert info["script_fallback"] == "template"
+    assert len(script.turns) == 12
+    assert script.turns[0].speaker == "HOST"
+    assert any("Postgres stores notebook state." in turn.text for turn in script.turns)
+
+
+def test_script_generator_parses_markdown_labelled_turns(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fake_generate(*_: object, **__: object) -> tuple[str, dict[str, str]]:
+        return (
+            "**HOST:** Welcome.\n"
+            "**ANALYST:** Grounded detail one.\n"
+            "1. HOST - What changed?\n"
+            "2. ANALYST - Grounded detail two.\n"
+            "HOST: Question three.\n"
+            "ANALYST: Detail three.\n"
+            "HOST: Question four.\n"
+            "ANALYST: Detail four.\n"
+            "HOST: Question five.\n"
+            "ANALYST: Detail five.\n"
+            "HOST: Question six.\n"
+            "ANALYST: Detail six.",
+            {"provider": "test"},
+        )
+
+    generator = ScriptGenerator()
+    monkeypatch.setattr(generator.router, "generate", _fake_generate)
+    script, info = generator.generate(title="Markdown", source_context="context")
+    assert info["provider"] == "test"
+    assert len(script.turns) == 12
+    assert script.turns[1].speaker == "ANALYST"

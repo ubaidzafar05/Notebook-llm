@@ -17,6 +17,7 @@ TEST_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
+os.environ["ENABLE_ZEP_MEMORY"] = "true"
 os.environ["ZEP_API_KEY"] = "test-zep-key"
 os.environ["ZEP_PROJECT_ID"] = "00000000-0000-4000-8000-000000000001"
 

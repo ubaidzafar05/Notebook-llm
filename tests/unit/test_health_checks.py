@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import cast
 
-from app.core.health_checks import DependencyStatus, _check_milvus
+import pytest
+
+from app.core.config import reset_settings_cache
+from app.core.health_checks import DependencyStatus, _check_milvus, _check_zep
 from app.vector_store.milvus_client import VectorStoreClient
 
 
@@ -40,3 +43,13 @@ def test_milvus_check_classifies_connection_failures() -> None:
     status = _check_milvus(vector_store=cast(VectorStoreClient, store))
     assert status.state == "degraded"
     assert status.detail.startswith("connection_failure:")
+
+
+def test_zep_check_is_skipped_when_memory_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    with monkeypatch.context() as scoped:
+        scoped.setenv("ENABLE_ZEP_MEMORY", "false")
+        reset_settings_cache()
+        status = _check_zep()
+    reset_settings_cache()
+    assert status.state == "skipped"
+    assert status.detail == "Zep memory disabled"

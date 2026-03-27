@@ -55,8 +55,8 @@ def _extract_final_sse_payload(raw_body: str) -> dict[str, Any]:
     return final_payload
 
 
-def _sync_enqueue(fn: Any, *args: Any, retry_max: int = 2) -> dict[str, str]:
-    _ = retry_max
+def _sync_enqueue(fn: Any, *args: Any, retry_max: int = 2, **kwargs: Any) -> dict[str, str]:
+    _ = (retry_max, kwargs)
     if getattr(fn, "__name__", "") == "process_ingestion_job":
         fn(*args)
     if getattr(fn, "__name__", "") == "process_podcast_job":

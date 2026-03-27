@@ -36,8 +36,9 @@ def test_readiness_endpoint_shape(client: TestClient) -> None:
     assert payload["error"] is None
     assert payload["data"]["status"] in {"ready", "not_ready"}
     assert "required_dependencies" in payload["data"]
+    assert "optional_dependencies" in payload["data"]
     assert "postgres" in payload["data"]["required_dependencies"]
     assert "redis" in payload["data"]["required_dependencies"]
     assert "milvus" in payload["data"]["required_dependencies"]
-    assert "zep" in payload["data"]["required_dependencies"]
     assert "provider_gate" in payload["data"]["required_dependencies"]
+    assert "zep" in payload["data"]["optional_dependencies"]

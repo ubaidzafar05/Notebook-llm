@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from app.db.repositories.chat_repo import ChatRepository
 from app.db.repositories.notebook_repo import NotebookRepository
 from app.db.repositories.source_repo import ChunkRepository, SourceRepository
 from app.db.repositories.user_repo import UserRepository
@@ -155,3 +156,38 @@ def test_notebook_scoped_sources_and_chunks_are_isolated(client: TestClient) -> 
         headers=owner_headers,
     )
     assert cross_notebook.status_code == 404
+
+
+def test_legacy_chat_export_route_resolves_notebook_from_session(client: TestClient) -> None:
+    headers = _auth_headers(client, "notebook-export@example.com")
+    notebook_id = client.get("/api/v1/notebooks", headers=headers).json()["data"][0]["id"]
+
+    created = client.post(
+        f"/api/v1/notebooks/{notebook_id}/chat/sessions",
+        headers=headers,
+        json={"title": "Export Session"},
+    )
+    assert created.status_code == 201
+    session_id = created.json()["data"]["id"]
+
+    db = SessionLocal()
+    try:
+        user = UserRepository(db).get_by_email("notebook-export@example.com")
+        assert user is not None
+        session = ChatRepository(db).get_session_for_notebook(
+            user_id=user.id,
+            notebook_id=notebook_id,
+            session_id=session_id,
+        )
+        assert session is not None
+        ChatRepository(db).add_message(session=session, role="user", content="What is this?", citations=[], model_info={})
+        ChatRepository(db).add_message(session=session, role="assistant", content="This is an export test.", citations=[], model_info={})
+    finally:
+        db.close()
+
+    export_response = client.get(
+        f"/api/v1/chat/sessions/{session_id}/export?format=md",
+        headers=headers,
+    )
+    assert export_response.status_code == 200
+    assert "This is an export test." in export_response.text
