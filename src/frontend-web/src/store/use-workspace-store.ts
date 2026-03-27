@@ -121,6 +121,42 @@ type WorkspaceState = {
   setHistorySearchOpen: (open: boolean) => void;
 };
 
+function sameDocuments(left: SourceDocument[], right: SourceDocument[]): boolean {
+  return left.length === right.length && left.every((document, index) => {
+    const next = right[index];
+    return next
+      && document.id === next.id
+      && document.status === next.status
+      && document.progress === next.progress
+      && document.updatedAt === next.updatedAt;
+  });
+}
+
+function sameNodes(left: KnowledgeNode[], right: KnowledgeNode[]): boolean {
+  return left.length === right.length && left.every((node, index) => {
+    const next = right[index];
+    return next
+      && node.id === next.id
+      && node.sourceId === next.sourceId
+      && node.status === next.status
+      && node.position.x === next.position.x
+      && node.position.y === next.position.y
+      && node.position.z === next.position.z;
+  });
+}
+
+function sameEdges(left: KnowledgeEdge[], right: KnowledgeEdge[]): boolean {
+  return left.length === right.length && left.every((edge, index) => {
+    const next = right[index];
+    return next
+      && edge.id === next.id
+      && edge.from === next.from
+      && edge.to === next.to
+      && edge.strength === next.strength
+      && edge.kind === next.kind;
+  });
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   documentsState: {
     documents: [],
@@ -181,26 +217,36 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     viewMode: "board"
   },
   setKnowledgeGraph: (documents, nodes, edges) =>
-    set((state) => ({
-      documentsState: {
-        ...state.documentsState,
-        documents,
-        ingestionStateById: Object.fromEntries(documents.map((document) => [document.id, document.status])),
-        activeDocumentId: state.documentsState.activeDocumentId && documents.some((document) => document.id === state.documentsState.activeDocumentId)
-          ? state.documentsState.activeDocumentId
-          : documents[0]?.id ?? null,
-        selectedDocumentIds: state.documentsState.selectedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
-      },
-      sceneState: {
-        ...state.sceneState,
-        nodes,
-        edges
-      },
-      chatState: {
-        ...state.chatState,
-        attachedDocumentIds: state.chatState.attachedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
+    set((state) => {
+      if (
+        sameDocuments(state.documentsState.documents, documents)
+        && sameNodes(state.sceneState.nodes, nodes)
+        && sameEdges(state.sceneState.edges, edges)
+      ) {
+        return state;
       }
-    })),
+
+      return {
+        documentsState: {
+          ...state.documentsState,
+          documents,
+          ingestionStateById: Object.fromEntries(documents.map((document) => [document.id, document.status])),
+          activeDocumentId: state.documentsState.activeDocumentId && documents.some((document) => document.id === state.documentsState.activeDocumentId)
+            ? state.documentsState.activeDocumentId
+            : documents[0]?.id ?? null,
+          selectedDocumentIds: state.documentsState.selectedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
+        },
+        sceneState: {
+          ...state.sceneState,
+          nodes,
+          edges
+        },
+        chatState: {
+          ...state.chatState,
+          attachedDocumentIds: state.chatState.attachedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
+        }
+      };
+    }),
   setMessages: (messages) => set((state) => ({ chatState: { ...state.chatState, messages } })),
   addMessage: (message) =>
     set((state) => ({

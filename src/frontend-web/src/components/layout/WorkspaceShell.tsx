@@ -25,61 +25,40 @@ export function WorkspaceShell({
 }: WorkspaceShellProps): JSX.Element {
   return (
     <>
+      <div className="fixed left-4 top-[92px] z-40 hidden xl:block">
+        <Button
+          aria-label={galleryCollapsed ? "Expand source gallery" : "Collapse source gallery"}
+          className="shadow-soft-card"
+          size="sm"
+          variant="outline"
+          onClick={onToggleGallery}
+        >
+          {galleryCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </Button>
+      </div>
+
       <main className="mx-auto w-full max-w-[1760px] px-4 pb-8 pt-5 sm:px-6 lg:pb-10">
         <div className="flex items-start gap-4">
-          {/* Gallery toggle for desktop */}
-          <div className="hidden pt-1 xl:block">
-            <Button
-              aria-label={galleryCollapsed ? "Expand source gallery" : "Collapse source gallery"}
-              size="sm"
-              variant="ghost"
-              onClick={onToggleGallery}
-            >
-              {galleryCollapsed ? (
-                <PanelLeftOpen className="h-4 w-4" />
-              ) : (
-                <PanelLeftClose className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-
-          {/* Center — Answer Board (dominant) */}
           <section className="min-w-0 flex-1">
-            <div className="mx-auto max-w-[var(--answer-board-max-width)]">{children}</div>
+            <div className="mx-auto max-w-[var(--answer-board-max-width)] xl:pl-10">{children}</div>
           </section>
         </div>
 
-        {/* Mobile source gallery — shown below center on small screens */}
         <div className="mt-6 xl:hidden">{left}</div>
       </main>
 
-      {/* Off-canvas gallery rail (desktop) */}
-      <AnimatePresence>
-        {!galleryCollapsed ? (
-          <motion.button
-            aria-label="Close source gallery"
-            className="fixed inset-0 z-30 hidden bg-[color:var(--studio-overlay)] xl:block"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            type="button"
-            onClick={onToggleGallery}
-          />
-        ) : null}
-      </AnimatePresence>
-      <motion.aside
+      <aside
         aria-label="Source gallery"
         className={cn(
-          "fixed left-0 top-0 z-40 hidden h-screen w-[var(--gallery-rail-width)] px-4 pb-6 pt-[80px] xl:block",
-          galleryCollapsed && "pointer-events-none"
+          "fixed inset-y-0 left-0 z-30 hidden w-[calc(var(--gallery-rail-width)+2rem)] px-4 pb-6 pt-[80px] transition-[transform,opacity] duration-300 ease-out xl:block",
+          galleryCollapsed
+            ? "pointer-events-none translate-x-[calc(-1*(var(--gallery-rail-width)+2rem))] opacity-0"
+            : "translate-x-0 opacity-100"
         )}
-        initial={false}
-        animate={{ x: galleryCollapsed ? -360 : 0, opacity: galleryCollapsed ? 0 : 1 }}
-        transition={springs.galleryToggle}
         style={{ willChange: "transform" }}
       >
-        <div className="min-w-[280px] space-y-4">{left}</div>
-      </motion.aside>
+        <div className="h-[calc(100vh-92px)] min-w-[280px] overflow-hidden">{left}</div>
+      </aside>
 
       {/* Studio overlay */}
       <AnimatePresence>
@@ -114,7 +93,7 @@ export function WorkspaceShell({
               Close
             </Button>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden">{right}</div>
+          <div className="min-h-0 flex-1 overflow-hidden">{studioOpen ? right : null}</div>
         </div>
       </motion.aside>
     </>

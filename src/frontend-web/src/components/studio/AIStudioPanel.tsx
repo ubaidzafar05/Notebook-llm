@@ -5,7 +5,6 @@ import { PanelShell } from "@/components/layout/PanelShell";
 import { PodcastStudio } from "@/components/studio/PodcastStudio";
 import { InsightEnginePanel } from "@/components/studio/InsightEnginePanel";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -137,17 +136,9 @@ export function AIStudioPanel({
 
           <div className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-4">
             <p className="text-[10px] uppercase tracking-[0.24em] text-[color:var(--text-kicker)]">Model</p>
-            <Select
-              value={chatSettings.model}
-              onValueChange={(value) => onUpdateChatSettings({ model: value as ModelOption })}
-            >
-              <SelectTrigger className="mt-2.5">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ollama/qwen3:8b">ollama/qwen3:8b</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="mt-2.5 rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] px-3 py-2 text-sm text-[color:var(--text-primary)]">
+              {chatSettings.model}
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-4">

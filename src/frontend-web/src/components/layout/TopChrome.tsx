@@ -52,6 +52,10 @@ export function TopChrome({
   studioOpen = false,
   onToggleStudio,
 }: TopChromeProps): JSX.Element {
+  const canRenderNotebookSelect = Boolean(
+    onNotebookSelect && activeNotebookId && notebookOptions.some((option) => option.id === activeNotebookId)
+  );
+
   return (
     <motion.header
       className="sticky top-0 z-50 border-b border-[color:var(--shell-border)] bg-[color:var(--chrome-bg)] backdrop-blur-xl"
@@ -75,7 +79,7 @@ export function TopChrome({
         </div>
 
         {/* Notebook select */}
-        {notebookOptions.length > 0 && onNotebookSelect ? (
+        {canRenderNotebookSelect ? (
           <div className="hidden min-w-[180px] max-w-[240px] flex-1 md:block">
             <Select value={activeNotebookId} onValueChange={onNotebookSelect}>
               <SelectTrigger className="h-9 border-[color:var(--panel-border)] bg-[color:var(--surface-2)] text-[color:var(--text-primary)]">
@@ -89,6 +93,12 @@ export function TopChrome({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        ) : notebookTitle ? (
+          <div className="hidden min-w-[180px] max-w-[240px] flex-1 md:flex">
+            <div className="flex h-9 w-full items-center rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] px-3 text-sm text-[color:var(--text-primary)]">
+              <span className="truncate">{notebookTitle}</span>
+            </div>
           </div>
         ) : null}
 

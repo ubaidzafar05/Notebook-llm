@@ -132,7 +132,19 @@ export function WorkspacePage(): JSX.Element {
   const podcastMutations = usePodcastMutations(notebookId);
   const usageQuery = useNotebookUsageQuery(notebookId, Boolean(notebookId));
   const exportMutation = useExportMutation(notebookId);
-  const notebookOptions = useMemo(() => (notebooksQuery.data ?? []).map((notebook) => ({ id: notebook.id, title: notebook.title })), [notebooksQuery.data]);
+  const notebookOptions = useMemo(() => {
+    const options = new Map<string, { id: string; title: string }>();
+    for (const notebook of notebooksQuery.data ?? []) {
+      options.set(notebook.id, { id: notebook.id, title: notebook.title });
+    }
+    if (notebookQuery.data) {
+      options.set(notebookQuery.data.id, {
+        id: notebookQuery.data.id,
+        title: notebookQuery.data.title,
+      });
+    }
+    return [...options.values()];
+  }, [notebookQuery.data, notebooksQuery.data]);
 
   useEffect(() => {
     autoCreatedSessionRef.current = false;

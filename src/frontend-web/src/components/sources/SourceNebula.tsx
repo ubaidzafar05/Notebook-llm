@@ -87,7 +87,7 @@ export function SourceNebula({
   }
 
   return (
-    <PanelShell className="flex h-full min-h-[680px] flex-col p-5">
+    <PanelShell className="flex h-full min-h-[680px] flex-col p-5 xl:min-h-0">
       {/* Header */}
       <header className="mb-4">
         <p className="text-[10px] uppercase tracking-[0.3em] text-[color:var(--text-kicker)]">Sources</p>
@@ -99,105 +99,98 @@ export function SourceNebula({
         </div>
       </header>
 
-      {/* Upload zone */}
-      <UploadDropzone isUploading={isUploading} onIngestUrl={onIngestUrl} onUploadFile={onUploadFile} />
+      <ScrollArea className="min-h-0 flex-1 pr-1">
+        <div className="space-y-4 pb-1">
+          <UploadDropzone isUploading={isUploading} onIngestUrl={onIngestUrl} onUploadFile={onUploadFile} />
 
-      {/* Activity message */}
-      {activityMessage ? (
-        <div className="mt-3 rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
-          <div className="flex items-center justify-between gap-2">
-            <span>{activityMessage}</span>
-            {canCancelJob && onCancelJob ? (
-              <Button size="sm" variant="outline" onClick={() => void onCancelJob()}>
-                Cancel
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+          {activityMessage ? (
+            <div className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-3)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
+              <div className="flex items-center justify-between gap-2">
+                <span>{activityMessage}</span>
+                {canCancelJob && onCancelJob ? (
+                  <Button size="sm" variant="outline" onClick={() => void onCancelJob()}>
+                    Cancel
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
-      {/* Preview card */}
-      <div className="mt-4">
-        <SourcePreviewCard document={previewDocument} />
-      </div>
+          <SourcePreviewCard document={previewDocument} />
 
-      {/* Source filter */}
-      <div className="mt-4 flex items-center gap-2 rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] px-3 py-1.5">
-        <Search className="h-3.5 w-3.5 text-[color:var(--text-kicker)]" />
-        <Input
-          aria-label="Filter notebook sources"
-          id="source-gallery-search"
-          className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-          placeholder="Search sources"
-          value={searchValue}
-          onChange={(event) => onSearchChange(event.target.value)}
-        />
-      </div>
-
-      <div className="mt-3 space-y-3 rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-kicker)]">Type</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {SOURCE_TYPE_OPTIONS.map((type) => (
-              <button
-                key={type.value}
-                className={`rounded-full border px-2.5 py-1 text-xs ${
-                  filters.types.includes(type.value)
-                    ? "border-[color:var(--panel-border-strong)] bg-[color:var(--surface-3)] text-[color:var(--text-primary)]"
-                    : "border-[color:var(--panel-border)] bg-[color:var(--surface-2)] text-[color:var(--text-muted)]"
-                }`}
-                type="button"
-                onClick={() => toggleType(type.value)}
-              >
-                {type.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-kicker)]">Status</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {SOURCE_STATUS_OPTIONS.map((status) => (
-              <button
-                key={status.value}
-                className={`rounded-full border px-2.5 py-1 text-xs ${
-                  filters.statuses.includes(status.value)
-                    ? "border-[color:var(--panel-border-strong)] bg-[color:var(--surface-3)] text-[color:var(--text-primary)]"
-                    : "border-[color:var(--panel-border)] bg-[color:var(--surface-2)] text-[color:var(--text-muted)]"
-                }`}
-                type="button"
-                onClick={() => toggleStatus(status.value)}
-              >
-                {status.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-kicker)]">From</label>
+          <div className="flex items-center gap-2 rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] px-3 py-1.5">
+            <Search className="h-3.5 w-3.5 text-[color:var(--text-kicker)]" />
             <Input
-              type="date"
-              value={filters.from ?? ""}
-              onChange={(event) => onUpdateFilters({ ...filters, from: event.target.value || null })}
+              aria-label="Filter notebook sources"
+              id="source-gallery-search"
+              className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+              placeholder="Search sources"
+              value={searchValue}
+              onChange={(event) => onSearchChange(event.target.value)}
             />
           </div>
-          <div>
-            <label className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-kicker)]">To</label>
-            <Input
-              type="date"
-              value={filters.to ?? ""}
-              onChange={(event) => onUpdateFilters({ ...filters, to: event.target.value || null })}
-            />
-          </div>
-        </div>
-      </div>
 
-      {/* Source list */}
-      <ScrollArea className="mt-4 flex-1 pr-1">
-        <div className="space-y-3 pb-1">
+          <div className="space-y-3 rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] p-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-kicker)]">Type</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {SOURCE_TYPE_OPTIONS.map((type) => (
+                  <button
+                    key={type.value}
+                    className={`rounded-full border px-2.5 py-1 text-xs ${
+                      filters.types.includes(type.value)
+                        ? "border-[color:var(--panel-border-strong)] bg-[color:var(--surface-3)] text-[color:var(--text-primary)]"
+                        : "border-[color:var(--panel-border)] bg-[color:var(--surface-2)] text-[color:var(--text-muted)]"
+                    }`}
+                    type="button"
+                    onClick={() => toggleType(type.value)}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-kicker)]">Status</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {SOURCE_STATUS_OPTIONS.map((status) => (
+                  <button
+                    key={status.value}
+                    className={`rounded-full border px-2.5 py-1 text-xs ${
+                      filters.statuses.includes(status.value)
+                        ? "border-[color:var(--panel-border-strong)] bg-[color:var(--surface-3)] text-[color:var(--text-primary)]"
+                        : "border-[color:var(--panel-border)] bg-[color:var(--surface-2)] text-[color:var(--text-muted)]"
+                    }`}
+                    type="button"
+                    onClick={() => toggleStatus(status.value)}
+                  >
+                    {status.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-kicker)]">From</label>
+                <Input
+                  type="date"
+                  value={filters.from ?? ""}
+                  onChange={(event) => onUpdateFilters({ ...filters, from: event.target.value || null })}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-[0.22em] text-[color:var(--text-kicker)]">To</label>
+                <Input
+                  type="date"
+                  value={filters.to ?? ""}
+                  onChange={(event) => onUpdateFilters({ ...filters, to: event.target.value || null })}
+                />
+              </div>
+            </div>
+          </div>
+
           {isLoading
             ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-36 w-full rounded-2xl" />)
             : documents.map((document) => (

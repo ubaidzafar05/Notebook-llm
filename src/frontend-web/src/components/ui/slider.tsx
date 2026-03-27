@@ -1,17 +1,29 @@
-import * as SliderPrimitive from "@radix-ui/react-slider";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export const Slider = React.forwardRef<
-  React.ElementRef<typeof SliderPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <SliderPrimitive.Root ref={ref} className={cn("relative flex w-full touch-none items-center", className)} {...props}>
-    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-secondary">
-      <SliderPrimitive.Range className="absolute h-full bg-primary" />
-    </SliderPrimitive.Track>
-    <SliderPrimitive.Thumb className="block h-5 w-5 rounded-full border border-primary/30 bg-card shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-  </SliderPrimitive.Root>
-));
+type SliderProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "defaultValue" | "onChange"> & {
+  value?: number[];
+  defaultValue?: number[];
+  onValueChange?: (value: number[]) => void;
+};
 
-Slider.displayName = SliderPrimitive.Root.displayName;
+export const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
+  ({ className, value, defaultValue, min = 0, max = 100, step = 1, onValueChange, ...props }, ref) => {
+    const currentValue = value?.[0] ?? defaultValue?.[0] ?? Number(min);
+    return (
+      <input
+        ref={ref}
+        className={cn("h-2 w-full cursor-pointer accent-[color:var(--accent-soft)]", className)}
+        max={max}
+        min={min}
+        step={step}
+        type="range"
+        value={currentValue}
+        onChange={(event) => onValueChange?.([Number(event.target.value)])}
+        {...props}
+      />
+    );
+  }
+);
+
+Slider.displayName = "Slider";

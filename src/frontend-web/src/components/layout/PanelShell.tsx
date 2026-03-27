@@ -13,7 +13,7 @@ export function PanelShell({ children, className }: PanelShellProps): JSX.Elemen
         className
       )}
     >
-      <div className="relative h-full">{children}</div>
+      <div className="relative flex h-full min-h-0 flex-col">{children}</div>
     </section>
   );
 }
