@@ -31,8 +31,11 @@ class Settings(BaseSettings):
     )
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     redis_key_prefix: str = Field(default="notebooklm", alias="REDIS_KEY_PREFIX")
-    rq_queue_name: str = Field(default="notebooklm-default", alias="RQ_QUEUE_NAME")
+    rq_queue_name_core: str = Field(default="notebooklm-core", alias="RQ_QUEUE_NAME_CORE")
+    rq_queue_name_podcast: str = Field(default="notebooklm-podcast", alias="RQ_QUEUE_NAME_PODCAST")
     rq_strict_mode: bool = Field(default=True, alias="RQ_STRICT_MODE")
+    rq_worker_role: str = Field(default="core", alias="RQ_WORKER_ROLE")
+    rq_worker_queues: str = Field(default="", alias="RQ_WORKER_QUEUES")
     job_max_retries_ingestion: int = Field(default=2, alias="JOB_MAX_RETRIES_INGESTION")
     job_max_retries_podcast: int = Field(default=2, alias="JOB_MAX_RETRIES_PODCAST")
 

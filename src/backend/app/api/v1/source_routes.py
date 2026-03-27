@@ -22,7 +22,7 @@ from app.embeddings.embedding_service import EmbeddingService
 from app.ingestion.idempotency_store import IdempotencyStore
 from app.ingestion.ingestion_service import IngestionService
 from app.jobs.job_service import JobService
-from app.jobs.queue import TaskQueue
+from app.jobs.queue import JobQueue, TaskQueue
 from app.jobs.queue_state_store import QueueStateStore
 from app.jobs.workers import process_ingestion_job
 from app.retrieval.hybrid_retriever import HybridRetriever
@@ -492,7 +492,7 @@ def get_job(
 
     if job.status == "failed" and not job.dead_lettered and job.queue_job_id:
         try:
-            if QueueStateStore().is_dead_lettered(job.queue_job_id):
+            if job.queue_name and QueueStateStore(job.queue_name).is_dead_lettered(job.queue_job_id):
                 service.mark_dead_lettered(user_id=user.id, job_id=job_id)
                 job = service.get(user_id=user.id, job_id=job_id) or job
         except AppError:
@@ -534,8 +534,8 @@ def cancel_job(
 
     if job.status == "queued":
         cancelled_in_queue = False
-        if job.queue_job_id:
-            cancelled_in_queue = QueueStateStore().cancel(job.queue_job_id)
+        if job.queue_job_id and job.queue_name:
+            cancelled_in_queue = QueueStateStore(job.queue_name).cancel(job.queue_job_id)
         if cancelled_in_queue:
             service.cancel(user_id=user.id, job_id=job_id)
             return success_response(
@@ -651,7 +651,14 @@ def _enqueue_ingestion_job(
     retry_max: int,
 ) -> dict[str, str | None] | JSONResponse:
     try:
-        dispatch = TaskQueue.enqueue(process_ingestion_job, user_id, job_id, source_id, retry_max=retry_max)
+        dispatch = TaskQueue.enqueue(
+            process_ingestion_job,
+            user_id,
+            job_id,
+            source_id,
+            queue=JobQueue.CORE,
+            retry_max=retry_max,
+        )
     except AppError:
         jobs.fail(
             user_id=user_id,

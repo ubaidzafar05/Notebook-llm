@@ -12,7 +12,7 @@ from app.core.response_envelope import error_response, success_response
 from app.db.models import PodcastJob
 from app.db.repositories.notebook_repo import NotebookRepository
 from app.db.session import get_db
-from app.jobs.queue import TaskQueue
+from app.jobs.queue import JobQueue, TaskQueue
 from app.jobs.workers import process_podcast_job
 from app.podcast.podcast_service import PodcastService
 from schemas.podcast import CreatePodcastRequest, RetryPodcastRequest
@@ -43,6 +43,7 @@ def create_podcast(
         podcast_id,
         payload.title,
         payload.voice,
+        queue=JobQueue.PODCAST,
         retry_max=settings.job_max_retries_podcast,
         job_timeout_seconds=settings.ollama_podcast_timeout_seconds + settings.podcast_tts_timeout_seconds + settings.podcast_mix_timeout_seconds + 30,
     )
@@ -130,6 +131,7 @@ def retry_podcast(
         new_podcast_id,
         payload.title,
         payload.voice or original.voice_label,
+        queue=JobQueue.PODCAST,
         retry_max=settings.job_max_retries_podcast,
         job_timeout_seconds=settings.ollama_podcast_timeout_seconds + settings.podcast_tts_timeout_seconds + settings.podcast_mix_timeout_seconds + 30,
     )
@@ -170,6 +172,7 @@ def create_notebook_podcast(
         podcast_id,
         payload.title,
         payload.voice,
+        queue=JobQueue.PODCAST,
         retry_max=settings.job_max_retries_podcast,
         job_timeout_seconds=settings.ollama_podcast_timeout_seconds + settings.podcast_tts_timeout_seconds + settings.podcast_mix_timeout_seconds + 30,
     )
@@ -259,6 +262,7 @@ def retry_notebook_podcast(
         new_podcast_id,
         payload.title,
         payload.voice or original.voice_label,
+        queue=JobQueue.PODCAST,
         retry_max=settings.job_max_retries_podcast,
         job_timeout_seconds=settings.ollama_podcast_timeout_seconds + settings.podcast_tts_timeout_seconds + settings.podcast_mix_timeout_seconds + 30,
     )

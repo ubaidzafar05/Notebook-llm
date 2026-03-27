@@ -16,6 +16,13 @@ def main() -> None:
     configure_logging()
     init_db()
     settings = get_settings()
+    role = settings.rq_worker_role.strip().lower()
+    if role == "podcast":
+        _prepare_podcast_worker(settings)
+    os.execvp("rq", ["rq", "worker", *_worker_queues(settings), "--url", settings.redis_url])
+
+
+def _prepare_podcast_worker(settings) -> None:
     db = SessionLocal()
     try:
         PodcastService(db).recover_interrupted_jobs()
@@ -26,7 +33,15 @@ def main() -> None:
             TtsService().warm_runtime()
         except Exception as exc:  # noqa: BLE001
             logger.warning("Kokoro runtime prewarm failed: %s", exc)
-    os.execvp("rq", ["rq", "worker", "notebooklm-default", "--url", "redis://redis:6379/0"])
+
+
+def _worker_queues(settings) -> list[str]:
+    configured = [item.strip() for item in settings.rq_worker_queues.split(",") if item.strip()]
+    if configured:
+        return configured
+    if settings.rq_worker_role.strip().lower() == "podcast":
+        return [settings.rq_queue_name_podcast]
+    return [settings.rq_queue_name_core]
 
 
 if __name__ == "__main__":

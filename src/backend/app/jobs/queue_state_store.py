@@ -20,9 +20,9 @@ class QueueDispatch:
 
 
 class QueueStateStore:
-    def __init__(self) -> None:
+    def __init__(self, queue_name: str) -> None:
         self.settings = get_settings()
-        self.queue_name = self.settings.rq_queue_name
+        self.queue_name = queue_name
 
     def enqueue(
         self,

@@ -136,11 +136,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  rq-worker:
+  rq-worker-core:
     build:
       context: ../
       dockerfile: Dockerfile.backend
-    container_name: notebooklm-rq-worker
     restart: unless-stopped
     working_dir: /app/src/backend
     command:
@@ -153,6 +152,7 @@ services:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       ENABLE_ZEP_MEMORY: "false"
       PYTHONPATH: /app/src/backend
+      RQ_WORKER_ROLE: core
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -163,7 +163,71 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-default'"]
+      test: ["CMD-SHELL", "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-core'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  rq-worker-podcast:
+    build:
+      context: ../
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    working_dir: /app/src/backend
+    command:
+      ["python", "-m", "app.jobs.worker_bootstrap"]
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://notebooklm:${POSTGRES_PASSWORD:-notebooklm}@postgres:5432/notebooklm
+      REDIS_URL: redis://redis:6379/0
+      MILVUS_URI: http://milvus-standalone:19530
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      ENABLE_ZEP_MEMORY: "false"
+      PYTHONPATH: /app/src/backend
+      RQ_WORKER_ROLE: podcast
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../outputs:/app/outputs
+      - ../data:/app/data
+      - hf_cache:/app/.cache
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-podcast'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  rq-worker-podcast-2:
+    build:
+      context: ../
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    working_dir: /app/src/backend
+    command:
+      ["python", "-m", "app.jobs.worker_bootstrap"]
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://notebooklm:${POSTGRES_PASSWORD:-notebooklm}@postgres:5432/notebooklm
+      REDIS_URL: redis://redis:6379/0
+      MILVUS_URI: http://milvus-standalone:19530
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      ENABLE_ZEP_MEMORY: "false"
+      PYTHONPATH: /app/src/backend
+      RQ_WORKER_ROLE: podcast
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../outputs:/app/outputs
+      - ../data:/app/data
+      - hf_cache:/app/.cache
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-podcast'"]
       interval: 30s
       timeout: 5s
       retries: 3

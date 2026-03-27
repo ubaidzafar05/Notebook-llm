@@ -44,7 +44,8 @@ curl http://localhost:3000/
 The stack starts:
 - **Frontend** on port `3000` (nginx + SPA)
 - **Backend API** on port `8000` (FastAPI + uvicorn)
-- **RQ Worker** for background jobs (ingestion, podcasts)
+- **Core worker** for ingestion and queue-backed notebook jobs
+- **Two podcast workers** dedicated to podcast generation and TTS
 - **PostgreSQL** on port `5432`
 - **Redis** on port `6379`
 - **Milvus** on port `19530` (with etcd + MinIO)
@@ -94,11 +95,15 @@ docker compose -f docker-compose.prod.yml up -d --scale backend=3
 
 Update nginx upstream to load-balance across backend replicas.
 
-### Multiple RQ workers
+### Worker topology
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --scale rq-worker=4
+docker compose -f docker-compose.prod.yml up -d
 ```
+
+- `rq-worker-core` handles ingestion and non-podcast background jobs.
+- `rq-worker-podcast` and `rq-worker-podcast-2` are dedicated podcast workers.
+- Podcast jobs no longer compete with ingestion work on the same queue.
 
 ## Monitoring
 
@@ -125,6 +130,7 @@ Then verify the product path in the browser:
 - send one grounded chat query
 - export markdown and pdf
 - create a podcast and wait for audio download
+- check `queue_name` on job payloads if debugging worker routing
 
 ## Operational Notes
 
@@ -132,6 +138,7 @@ Then verify the product path in the browser:
 - On the current local CPU stack, podcast generation is measured in minutes, not seconds.
 - This is a throughput constraint, not a correctness issue.
 - If the worker restarts mid-job, stale `processing` podcast rows are automatically marked failed with `PODCAST_WORKER_INTERRUPTED`.
+- Use `python scripts/profile_podcast_tts.py` to benchmark local TTS throughput before changing synthesis concurrency.
 
 ## TLS / HTTPS
 
