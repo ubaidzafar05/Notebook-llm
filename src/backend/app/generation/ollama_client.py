@@ -11,7 +11,13 @@ class OllamaClient:
         self.settings = get_settings()
 
     @CircuitBreaker(name="ollama_generate", failure_threshold=3, recovery_timeout=30, exceptions=(requests.RequestException,))
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
+    def generate(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        *,
+        timeout_seconds: int | None = None,
+    ) -> str:
         payload = {
             "model": self.settings.ollama_chat_model,
             "messages": [
@@ -24,7 +30,7 @@ class OllamaClient:
         response = requests.post(
             f"{self.settings.ollama_base_url}/api/chat",
             json=payload,
-            timeout=90,
+            timeout=timeout_seconds or self.settings.ollama_request_timeout_seconds,
         )
         response.raise_for_status()
         body = response.json()

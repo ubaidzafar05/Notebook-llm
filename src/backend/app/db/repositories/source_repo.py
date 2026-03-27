@@ -189,6 +189,7 @@ class ChunkRepository:
         stmt = select(Chunk).where(Chunk.user_id == user_id, Chunk.source_id.in_(source_ids))
         if notebook_id is not None:
             stmt = stmt.where(Chunk.notebook_id == notebook_id)
+        stmt = stmt.order_by(Chunk.source_id.asc(), Chunk.chunk_index.asc())
         return list(self.db.scalars(stmt).all())
 
     def list_by_ids(self, *, user_id: str, notebook_id: str, chunk_ids: list[str]) -> list[Chunk]:

@@ -46,3 +46,24 @@ def test_script_generator_rejects_invalid_script(monkeypatch: pytest.MonkeyPatch
     with pytest.raises(AppError) as exc:
         generator.generate(title="Bad", source_context="context")
     assert exc.value.code == "PODCAST_SCRIPT_INVALID"
+
+
+def test_script_generator_parses_fenced_json_with_think_block(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fake_generate(*_: object, **__: object) -> tuple[str, dict[str, str]]:
+        return (
+            "<think>reasoning</think>\n```json\n"
+            '{"turns":[{"speaker":"HOST","text":"Opening."},{"speaker":"ANALYST","text":"Detail one."},'
+            '{"speaker":"HOST","text":"Question two."},{"speaker":"ANALYST","text":"Answer two."},'
+            '{"speaker":"HOST","text":"Question three."},{"speaker":"ANALYST","text":"Answer three."},'
+            '{"speaker":"HOST","text":"Question four."},{"speaker":"ANALYST","text":"Answer four."},'
+            '{"speaker":"HOST","text":"Question five."},{"speaker":"ANALYST","text":"Answer five."},'
+            '{"speaker":"HOST","text":"Question six."},{"speaker":"ANALYST","text":"Answer six."}]}\n```',
+            {"provider": "test"},
+        )
+
+    generator = ScriptGenerator()
+    monkeypatch.setattr(generator.router, "generate", _fake_generate)
+    script, info = generator.generate(title="Wrapped", source_context="context")
+    assert info["provider"] == "test"
+    assert len(script.turns) == 12
+    assert script.turns[0].text == "Opening."
