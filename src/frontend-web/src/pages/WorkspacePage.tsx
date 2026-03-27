@@ -124,6 +124,10 @@ export function WorkspacePage(): JSX.Element {
   const baseSourceData = (rawSourcesQuery.data ?? []).length ? rawSourcesQuery.data ?? [] : activeSourceData;
   const mergedDocuments = useMemo(() => mergeSourceProgress(baseSourceData, trackedJobs, jobStates), [baseSourceData, jobStates, trackedJobs]);
   const visibleDocuments = useMemo(() => mergeSourceProgress(activeSourceData, trackedJobs, jobStates), [activeSourceData, trackedJobs, jobStates]);
+  const retrievableSourceIds = useMemo(
+    () => mergedDocuments.filter((document) => document.status === "ready" && document.chunks > 0).map((document) => document.id),
+    [mergedDocuments]
+  );
   const sourceMap = useMemo(() => new Map(mergedDocuments.map((document) => [document.id, document])), [mergedDocuments]);
   const chatMutations = useChatMutations(notebookId, sourceMap);
   const messagesQuery = useNotebookMessagesQuery(notebookId, activeSessionId ?? "", sourceMap, Boolean(notebookId && activeSessionId));
@@ -400,6 +404,14 @@ export function WorkspacePage(): JSX.Element {
     if (!prompt) {
       return;
     }
+    const requestedSourceIds = attachedDocumentIds.length ? attachedDocumentIds : selectedDocumentIds;
+    const requestedRetrievable = requestedSourceIds.filter((sourceId) => retrievableSourceIds.includes(sourceId));
+    const sourceIdsForPrompt = requestedRetrievable.length ? requestedRetrievable : retrievableSourceIds;
+    if (!sourceIdsForPrompt.length) {
+      setWorkspaceError("No indexed source content is available yet. Wait for ingestion to finish, then try again.");
+      return;
+    }
+
     let sessionId = activeSessionId;
     if (!sessionId) {
       sessionId = await createSession("Notebook chat");
@@ -409,7 +421,6 @@ export function WorkspacePage(): JSX.Element {
       return;
     }
 
-    const selectedSourceIds = attachedDocumentIds.length ? attachedDocumentIds : selectedDocumentIds;
     const userMessage: ChatMessageRecord = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -434,7 +445,7 @@ export function WorkspacePage(): JSX.Element {
       const answer = await chatMutations.sendMessage.mutateAsync({
         sessionId,
         message: prompt,
-        sourceIds: selectedSourceIds,
+        sourceIds: sourceIdsForPrompt,
         onToken: (token) => {
           updateMessage(placeholderId, (message) => ({ ...message, content: `${message.content}${token}`, isStreaming: true }));
         }
@@ -573,7 +584,6 @@ export function WorkspacePage(): JSX.Element {
         activeNotebookId={notebookId}
         notebookOptions={notebookOptions}
         notebookTitle={notebookQuery.data?.title ?? "Notebook workspace"}
-        onCreateNotebook={() => navigate("/notebooks")}
         onLogout={() => void handleLogout()}
         onNewChat={() => void createSession(`Chat ${new Date().toLocaleTimeString()}`)}
         onNotebookSelect={(nextNotebookId) => navigate(`/notebooks/${nextNotebookId}`)}
@@ -608,6 +618,11 @@ export function WorkspacePage(): JSX.Element {
             onUpdateFilters={setSourceFilters}
             onSelectDocument={(sourceId) => {
               setActiveDocument(sourceId);
+              const source = mergedDocuments.find((item) => item.id === sourceId);
+              if (!source || source.status !== "ready" || source.chunks <= 0) {
+                setWorkspaceError("This source is not indexed yet. Wait for processing to complete.");
+                return;
+              }
               toggleDocumentSelection(sourceId);
             }}
             onUploadFile={handleUploadFile}

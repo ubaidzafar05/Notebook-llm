@@ -130,7 +130,6 @@ export function NotebooksPage(): JSX.Element {
     <div className="min-h-screen bg-[color:var(--shell-bg)]">
       <TopChrome
         notebookTitle="All notebooks"
-        onCreateNotebook={() => void handleCreateNotebook()}
         onLogout={() => void handleLogout()}
         onSearchChange={setSearchValue}
         onThemeChange={(mode: ThemeMode) => setThemeMode(mode)}
@@ -166,11 +165,6 @@ export function NotebooksPage(): JSX.Element {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button className="relative overflow-hidden" onClick={() => void handleCreateNotebook()}>
-                <span className="absolute -inset-1 rounded-full bg-[conic-gradient(from_120deg,rgba(255,255,255,0.1),rgba(255,255,255,0))]" />
-                <Plus className="h-4 w-4" />
-                New notebook
-              </Button>
               <Button variant="outline" onClick={() => setSearchValue("")}>Clear search</Button>
             </div>
           </div>
@@ -236,7 +230,6 @@ export function NotebooksPage(): JSX.Element {
 
               {emptyState ? (
                 <EmptyLibrary
-                  onCreate={() => void handleCreateNotebook()}
                   reduceMotion={reduceMotion}
                 />
               ) : (
@@ -454,7 +447,7 @@ function NotebookCard({
   );
 }
 
-function EmptyLibrary({ onCreate, reduceMotion }: { onCreate: () => void; reduceMotion: boolean }): JSX.Element {
+function EmptyLibrary({ reduceMotion }: { reduceMotion: boolean }): JSX.Element {
   return (
     <div className="mt-6 rounded-[1.6rem] border border-dashed border-[color:var(--panel-border)] bg-[color:var(--surface-3)] p-6 text-sm leading-6 text-[color:var(--text-muted)]">
       <div className="relative overflow-hidden rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--response-bg)] p-6">
@@ -478,12 +471,9 @@ function EmptyLibrary({ onCreate, reduceMotion }: { onCreate: () => void; reduce
               </div>
             ))}
           </div>
-          <div className={cn("mt-5 inline-flex", reduceMotion ? "" : "animate-[pulse_2s_ease-in-out_infinite]")}>
-            <Button onClick={onCreate}>
-              <Wand2 className="h-4 w-4" />
-              Create your first notebook
-            </Button>
-          </div>
+          <p className={cn("mt-5 text-xs uppercase tracking-[0.24em] text-[color:var(--text-kicker)]", reduceMotion ? "" : "animate-[pulse_2.2s_ease-in-out_infinite]")}>
+            Use the create panel on the right to start your first notebook.
+          </p>
         </div>
       </div>
     </div>

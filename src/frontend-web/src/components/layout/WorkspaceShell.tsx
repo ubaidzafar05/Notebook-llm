@@ -25,7 +25,12 @@ export function WorkspaceShell({
 }: WorkspaceShellProps): JSX.Element {
   return (
     <>
-      <div className="fixed left-4 top-[92px] z-40 hidden xl:block">
+      <div
+        className={cn(
+          "fixed top-[92px] z-40 hidden transition-[left] duration-300 xl:block",
+          galleryCollapsed ? "left-4" : "left-[calc(var(--gallery-rail-width)+1.25rem)]"
+        )}
+      >
         <Button
           aria-label={galleryCollapsed ? "Expand source gallery" : "Collapse source gallery"}
           className="shadow-soft-card"
@@ -50,14 +55,14 @@ export function WorkspaceShell({
       <aside
         aria-label="Source gallery"
         className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden w-[calc(var(--gallery-rail-width)+2rem)] px-4 pb-6 pt-[80px] transition-[transform,opacity] duration-300 ease-out xl:block",
+          "fixed bottom-0 left-0 top-[72px] z-30 hidden w-[calc(var(--gallery-rail-width)+2rem)] px-4 pb-6 transition-[transform,opacity] duration-300 ease-out xl:block",
           galleryCollapsed
             ? "pointer-events-none translate-x-[calc(-1*(var(--gallery-rail-width)+2rem))] opacity-0"
             : "translate-x-0 opacity-100"
         )}
         style={{ willChange: "transform" }}
       >
-        <div className="h-[calc(100vh-92px)] min-w-[280px] overflow-hidden">{left}</div>
+        <div className="h-full min-w-[280px] overflow-hidden">{left}</div>
       </aside>
 
       {/* Studio overlay */}
