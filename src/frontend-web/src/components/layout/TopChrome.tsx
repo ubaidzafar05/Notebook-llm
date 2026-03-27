@@ -1,9 +1,8 @@
-import { BookOpenText, LogOut, MessageSquarePlus, MoonStar, PanelRight, Plus, Search, Sparkles } from "lucide-react";
+import { BookOpenText, ChevronDown, Home, LogOut, MessageSquarePlus, MoonStar, PanelRight, Plus, Search, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { springs } from "@/animations/motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ThemeMode } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +25,7 @@ type TopChromeProps = {
   onCreateNotebook?: () => void;
   onNewChat?: () => void;
   onLogout?: () => void;
+  onHome?: () => void;
   studioOpen?: boolean;
   onToggleStudio?: () => void;
 };
@@ -49,6 +49,7 @@ export function TopChrome({
   onCreateNotebook,
   onNewChat,
   onLogout,
+  onHome,
   studioOpen = false,
   onToggleStudio,
 }: TopChromeProps): JSX.Element {
@@ -81,18 +82,21 @@ export function TopChrome({
         {/* Notebook select */}
         {canRenderNotebookSelect ? (
           <div className="hidden min-w-[180px] max-w-[240px] flex-1 md:block">
-            <Select value={activeNotebookId} onValueChange={onNotebookSelect}>
-              <SelectTrigger className="h-9 border-[color:var(--panel-border)] bg-[color:var(--surface-2)] text-[color:var(--text-primary)]">
-                <SelectValue placeholder="Select notebook" />
-              </SelectTrigger>
-              <SelectContent>
+            <div className="relative">
+              <select
+                aria-label="Select notebook"
+                className="h-9 w-full appearance-none rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--surface-2)] px-3 pr-9 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--panel-border-strong)]"
+                value={activeNotebookId}
+                onChange={(event) => onNotebookSelect?.(event.target.value)}
+              >
                 {notebookOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
+                  <option key={option.id} value={option.id}>
                     {option.title}
-                  </SelectItem>
+                  </option>
                 ))}
-              </SelectContent>
-            </Select>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-kicker)]" />
+            </div>
           </div>
         ) : notebookTitle ? (
           <div className="hidden min-w-[180px] max-w-[240px] flex-1 md:flex">
@@ -125,6 +129,12 @@ export function TopChrome({
 
         {/* Actions */}
         <div className="ml-auto flex items-center gap-1.5">
+          {onHome ? (
+            <Button size="sm" variant="outline" onClick={onHome}>
+              <Home className="h-3.5 w-3.5" />
+              Home
+            </Button>
+          ) : null}
           {onCreateNotebook ? (
             <Button className="hidden xl:inline-flex" size="sm" variant="outline" onClick={onCreateNotebook}>
               <Plus className="h-3.5 w-3.5" />

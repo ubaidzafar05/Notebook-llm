@@ -6,6 +6,7 @@ import { useNotebookQuery, useNotebookSourceQuery, useSourceChunksQuery, useSour
 import { ApiError, type ThemeMode } from "@/lib/api";
 import { TopChrome } from "@/components/layout/TopChrome";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useWorkspaceStore } from "@/store/use-workspace-store";
 
 export function SourceDetailPage(): JSX.Element {
@@ -18,6 +19,7 @@ export function SourceDetailPage(): JSX.Element {
   const [searchValue, setSearchValue] = useState("");
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const notebookQuery = useNotebookQuery(notebookId, Boolean(notebookId));
   const sourceQuery = useNotebookSourceQuery(notebookId, sourceId, Boolean(notebookId && sourceId));
@@ -39,12 +41,9 @@ export function SourceDetailPage(): JSX.Element {
     if (!source) {
       return;
     }
-    const confirmed = window.confirm(`Delete ${source.title}? This removes the source and its chunks from the notebook.`);
-    if (!confirmed) {
-      return;
-    }
     try {
       await sourceMutations.deleteSource.mutateAsync(source.id);
+      setConfirmOpen(false);
       navigate(`/notebooks/${notebookId}`);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Delete failed.");
@@ -55,8 +54,22 @@ export function SourceDetailPage(): JSX.Element {
 
   return (
     <div className="min-h-screen">
+      <ConfirmDialog
+        confirmLabel="Delete source"
+        description={
+          source
+            ? `Delete ${source.title} and remove its indexed chunks from this notebook. This cannot be undone.`
+            : ""
+        }
+        isPending={sourceMutations.deleteSource.isPending}
+        open={confirmOpen}
+        title="Delete source?"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => void handleDelete()}
+      />
       <TopChrome
         notebookTitle={notebookQuery.data?.title ?? "Source detail"}
+        onHome={() => navigate("/notebooks")}
         onSearchChange={setSearchValue}
         onThemeChange={(mode: ThemeMode) => setThemeMode(mode)}
         searchPlaceholder="Search chunks in this source"
@@ -72,7 +85,7 @@ export function SourceDetailPage(): JSX.Element {
               Back to notebook
             </Link>
           </Button>
-          <Button disabled={sourceMutations.deleteSource.isPending} variant="outline" onClick={() => void handleDelete()}>
+          <Button disabled={sourceMutations.deleteSource.isPending} variant="outline" onClick={() => setConfirmOpen(true)}>
             {sourceMutations.deleteSource.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             Delete source
           </Button>

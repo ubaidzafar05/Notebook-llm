@@ -7,6 +7,7 @@ import { useAuthMutations, useNotebookMutations, useNotebooksQuery } from "@/hoo
 import { ApiError, type ThemeMode } from "@/lib/api";
 import { TopChrome } from "@/components/layout/TopChrome";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/use-auth-store";
 import { useWorkspaceStore } from "@/store/use-workspace-store";
@@ -27,6 +28,7 @@ export function NotebooksPage(): JSX.Element {
   const [createTitle, setCreateTitle] = useState("");
   const [createDescription, setCreateDescription] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingDeleteNotebook, setPendingDeleteNotebook] = useState<{ id: string; title: string } | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -104,14 +106,14 @@ export function NotebooksPage(): JSX.Element {
     }
   }
 
-  async function handleDeleteNotebook(notebookId: string): Promise<void> {
-    setError(null);
-    const confirmed = window.confirm("Delete this notebook and all of its sources, chats, and podcast jobs?");
-    if (!confirmed) {
+  async function handleDeleteNotebook(): Promise<void> {
+    if (!pendingDeleteNotebook) {
       return;
     }
+    setError(null);
     try {
-      await notebookMutations.deleteNotebook.mutateAsync(notebookId);
+      await notebookMutations.deleteNotebook.mutateAsync(pendingDeleteNotebook.id);
+      setPendingDeleteNotebook(null);
     } catch (cause) {
       setError(resolveErrorMessage(cause));
     }
@@ -128,6 +130,20 @@ export function NotebooksPage(): JSX.Element {
 
   return (
     <div className="min-h-screen bg-[color:var(--shell-bg)]">
+      <ConfirmDialog
+        cancelLabel="Keep notebook"
+        confirmLabel="Delete notebook"
+        description={
+          pendingDeleteNotebook
+            ? `Delete ${pendingDeleteNotebook.title} and all of its sources, chats, and podcast jobs. This cannot be undone.`
+            : ""
+        }
+        isPending={notebookMutations.deleteNotebook.isPending}
+        open={Boolean(pendingDeleteNotebook)}
+        title="Delete notebook?"
+        onCancel={() => setPendingDeleteNotebook(null)}
+        onConfirm={() => void handleDeleteNotebook()}
+      />
       <TopChrome
         notebookTitle="All notebooks"
         onLogout={() => void handleLogout()}
@@ -200,7 +216,7 @@ export function NotebooksPage(): JSX.Element {
                       onEditChangeDescription={setEditDescription}
                       onEditSave={() => void handleSaveEdit(notebook.id)}
                       onEditCancel={() => setEditingId(null)}
-                      onDelete={() => void handleDeleteNotebook(notebook.id)}
+                      onDelete={() => setPendingDeleteNotebook({ id: notebook.id, title: notebook.title })}
                       onTogglePin={() => void handleTogglePin(notebook.id, !notebook.isPinned)}
                       onOpen={() => navigate(`/notebooks/${notebook.id}`)}
                       reduceMotion={reduceMotion}
@@ -259,7 +275,7 @@ export function NotebooksPage(): JSX.Element {
                       onEditChangeDescription={setEditDescription}
                       onEditSave={() => void handleSaveEdit(notebook.id)}
                       onEditCancel={() => setEditingId(null)}
-                      onDelete={() => void handleDeleteNotebook(notebook.id)}
+                      onDelete={() => setPendingDeleteNotebook({ id: notebook.id, title: notebook.title })}
                       onTogglePin={() => void handleTogglePin(notebook.id, !notebook.isPinned)}
                       onOpen={() => navigate(`/notebooks/${notebook.id}`)}
                       reduceMotion={reduceMotion}

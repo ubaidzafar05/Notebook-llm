@@ -181,26 +181,36 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     viewMode: "board"
   },
   setKnowledgeGraph: (documents, nodes, edges) =>
-    set((state) => ({
-      documentsState: {
-        ...state.documentsState,
-        documents,
-        ingestionStateById: Object.fromEntries(documents.map((document) => [document.id, document.status])),
-        activeDocumentId: state.documentsState.activeDocumentId && documents.some((document) => document.id === state.documentsState.activeDocumentId)
-          ? state.documentsState.activeDocumentId
-          : documents[0]?.id ?? null,
-        selectedDocumentIds: state.documentsState.selectedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
-      },
-      sceneState: {
-        ...state.sceneState,
-        nodes,
-        edges
-      },
-      chatState: {
-        ...state.chatState,
-        attachedDocumentIds: state.chatState.attachedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
+    set((state) => {
+      if (
+        state.documentsState.documents === documents &&
+        state.sceneState.nodes === nodes &&
+        state.sceneState.edges === edges
+      ) {
+        return state;
       }
-    })),
+
+      return {
+        documentsState: {
+          ...state.documentsState,
+          documents,
+          ingestionStateById: Object.fromEntries(documents.map((document) => [document.id, document.status])),
+          activeDocumentId: state.documentsState.activeDocumentId && documents.some((document) => document.id === state.documentsState.activeDocumentId)
+            ? state.documentsState.activeDocumentId
+            : documents[0]?.id ?? null,
+          selectedDocumentIds: state.documentsState.selectedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
+        },
+        sceneState: {
+          ...state.sceneState,
+          nodes,
+          edges
+        },
+        chatState: {
+          ...state.chatState,
+          attachedDocumentIds: state.chatState.attachedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
+        }
+      };
+    }),
   setMessages: (messages) => set((state) => ({ chatState: { ...state.chatState, messages } })),
   addMessage: (message) =>
     set((state) => ({

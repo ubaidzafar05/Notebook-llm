@@ -26,6 +26,7 @@ import { WorkspaceShell } from "@/components/layout/WorkspaceShell";
 import { SourceNebula } from "@/components/sources/SourceNebula";
 import { AnswerBoard } from "@/components/answer/AnswerBoard";
 import { AIStudioPanel } from "@/components/studio/AIStudioPanel";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   getAnswerTimeline,
   getLatestAssistantMessage,
@@ -33,6 +34,8 @@ import {
   workspaceSelectors
 } from "@/store/use-workspace-store";
 import { useAuthStore } from "@/store/use-auth-store";
+
+const EMPTY_SOURCES: SourceDocument[] = [];
 
 export function WorkspacePage(): JSX.Element {
   useAppTheme();
@@ -86,6 +89,7 @@ export function WorkspacePage(): JSX.Element {
   const [trackedJobs, setTrackedJobs] = useState<Record<string, string>>({});
   const [jobStates, setJobStates] = useState<Record<string, JobRecord>>({});
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [pendingDeleteSource, setPendingDeleteSource] = useState<{ id: string; title: string } | null>(null);
   const autoCreatedSessionRef = useRef(false);
 
   const notebooksQuery = useNotebooksQuery(Boolean(notebookId));
@@ -111,17 +115,20 @@ export function WorkspacePage(): JSX.Element {
   );
 
   const hasFilters = sourceFilters.types.length > 0 || sourceFilters.statuses.length > 0 || Boolean(sourceFilters.from || sourceFilters.to);
+  const rawSourceData = rawSourcesQuery.data ?? EMPTY_SOURCES;
+  const filteredSourceData = filteredSourcesQuery.data ?? EMPTY_SOURCES;
+  const searchedSourceData = sourceSearchQuery.data ?? EMPTY_SOURCES;
   const activeSourceData = sourceSearchValue.trim()
-    ? sourceSearchQuery.data ?? []
+    ? searchedSourceData
     : hasFilters
-      ? filteredSourcesQuery.data ?? []
-      : rawSourcesQuery.data ?? [];
+      ? filteredSourceData
+      : rawSourceData;
   const sourcesLoading = sourceSearchValue.trim()
     ? sourceSearchQuery.isLoading
     : hasFilters
       ? filteredSourcesQuery.isLoading
       : rawSourcesQuery.isLoading;
-  const baseSourceData = (rawSourcesQuery.data ?? []).length ? rawSourcesQuery.data ?? [] : activeSourceData;
+  const baseSourceData = rawSourceData.length ? rawSourceData : activeSourceData;
   const mergedDocuments = useMemo(() => mergeSourceProgress(baseSourceData, trackedJobs, jobStates), [baseSourceData, jobStates, trackedJobs]);
   const visibleDocuments = useMemo(() => mergeSourceProgress(activeSourceData, trackedJobs, jobStates), [activeSourceData, trackedJobs, jobStates]);
   const retrievableSourceIds = useMemo(
@@ -377,23 +384,19 @@ export function WorkspacePage(): JSX.Element {
     }
   }
 
-  async function handleDeleteSource(sourceId: string): Promise<void> {
-    const source = mergedDocuments.find((item) => item.id === sourceId);
-    if (!source) {
-      return;
-    }
-    const confirmed = window.confirm(`Delete ${source.title}? This removes the source from the notebook.`);
-    if (!confirmed) {
+  async function handleDeleteSource(): Promise<void> {
+    if (!pendingDeleteSource) {
       return;
     }
     setWorkspaceError(null);
     try {
-      await sourceMutations.deleteSource.mutateAsync(sourceId);
+      await sourceMutations.deleteSource.mutateAsync(pendingDeleteSource.id);
       setTrackedJobs((current) => {
         const next = { ...current };
-        delete next[sourceId];
+        delete next[pendingDeleteSource.id];
         return next;
       });
+      setPendingDeleteSource(null);
     } catch (error) {
       setWorkspaceError(resolveErrorMessage(error));
     }
@@ -580,9 +583,24 @@ export function WorkspacePage(): JSX.Element {
 
   return (
     <div className="min-h-screen">
+      <ConfirmDialog
+        cancelLabel="Keep source"
+        confirmLabel="Delete source"
+        description={
+          pendingDeleteSource
+            ? `Delete ${pendingDeleteSource.title} from this notebook. Its indexed chunks, embeddings, and related grounding data will be removed.`
+            : ""
+        }
+        isPending={sourceMutations.deleteSource.isPending}
+        open={Boolean(pendingDeleteSource)}
+        title="Delete source?"
+        onCancel={() => setPendingDeleteSource(null)}
+        onConfirm={() => void handleDeleteSource()}
+      />
       <TopChrome
         activeNotebookId={notebookId}
         notebookOptions={notebookOptions}
+        onHome={() => navigate("/notebooks")}
         notebookTitle={notebookQuery.data?.title ?? "Notebook workspace"}
         onLogout={() => void handleLogout()}
         onNewChat={() => void createSession(`Chat ${new Date().toLocaleTimeString()}`)}
@@ -610,7 +628,13 @@ export function WorkspacePage(): JSX.Element {
             isLoading={sourcesLoading}
             isUploading={sourceMutations.uploadSource.isPending || sourceMutations.ingestUrl.isPending}
             onCancelJob={handleCancelActiveJob}
-            onDeleteDocument={(sourceId) => void handleDeleteSource(sourceId)}
+            onDeleteDocument={(sourceId) => {
+              const source = mergedDocuments.find((item) => item.id === sourceId);
+              if (!source) {
+                return;
+              }
+              setPendingDeleteSource({ id: sourceId, title: source.title });
+            }}
             onHoverDocument={setHoveredDocument}
             onIngestUrl={handleIngestUrl}
             onOpenDocument={(sourceId) => navigate(`/notebooks/${notebookId}/sources/${sourceId}`)}
