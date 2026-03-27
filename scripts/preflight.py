@@ -223,6 +223,7 @@ def _check_kokoro() -> CheckResult:
     start = perf_counter()
     try:
         module = importlib.import_module("kokoro")
+        spacy = importlib.import_module("spacy")
     except Exception as exc:  # noqa: BLE001
         return _result(
             name="kokoro",
@@ -236,6 +237,14 @@ def _check_kokoro() -> CheckResult:
             name="kokoro",
             status="fail",
             detail="Kokoro package does not expose KPipeline",
+            required=True,
+            start=start,
+        )
+    if not spacy.util.is_package("en_core_web_sm"):
+        return _result(
+            name="kokoro",
+            status="fail",
+            detail="spaCy model en_core_web_sm is missing for Kokoro",
             required=True,
             start=start,
         )

@@ -199,6 +199,14 @@ class PodcastRepository:
         )
         return list(self.db.scalars(stmt).all())
 
+    def list_by_status(self, status: str) -> list[PodcastJob]:
+        stmt = (
+            select(PodcastJob)
+            .where(PodcastJob.status == status)
+            .order_by(PodcastJob.created_at.asc())
+        )
+        return list(self.db.scalars(stmt).all())
+
     def save(self, podcast: PodcastJob) -> PodcastJob:
         podcast.updated_at = datetime.now(UTC)
         self.db.add(podcast)

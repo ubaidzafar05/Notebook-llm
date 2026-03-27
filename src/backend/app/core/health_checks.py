@@ -46,7 +46,7 @@ def collect_dependency_health(
 
 
 def overall_system_state(statuses: dict[str, DependencyStatus]) -> Literal["ok", "degraded"]:
-    required = ("postgres", "redis", "milvus", "zep", "provider_gate")
+    required = ("postgres", "redis", "milvus", "provider_gate")
     for name in required:
         if statuses[name].state != "up":
             return "degraded"
@@ -119,16 +119,18 @@ def _check_http_service(path: str, service_name: Literal["ollama"]) -> Dependenc
 
 def _check_zep() -> DependencyStatus:
     settings = get_settings()
+    if not settings.enable_zep_memory:
+        return DependencyStatus(state="skipped", detail="Zep memory disabled", latency_ms=None)
     if not settings.zep_api_key:
-        return DependencyStatus(state="down", detail="ZEP_API_KEY is missing", latency_ms=None)
+        return DependencyStatus(state="skipped", detail="ZEP_API_KEY is missing", latency_ms=None)
     if not settings.zep_project_id:
-        return DependencyStatus(state="down", detail="ZEP_PROJECT_ID is missing", latency_ms=None)
+        return DependencyStatus(state="skipped", detail="ZEP_PROJECT_ID is missing", latency_ms=None)
     try:
         UUID(settings.zep_project_id)
     except ValueError:
-        return DependencyStatus(state="down", detail="ZEP_PROJECT_ID must be a valid UUID", latency_ms=None)
+        return DependencyStatus(state="skipped", detail="ZEP_PROJECT_ID must be a valid UUID", latency_ms=None)
     if settings.environment == "test":
-        return DependencyStatus(state="up", detail="Zep check skipped in test environment", latency_ms=None)
+        return DependencyStatus(state="skipped", detail="Zep check skipped in test environment", latency_ms=None)
 
     start = perf_counter()
     try:

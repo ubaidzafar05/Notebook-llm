@@ -42,8 +42,11 @@ class Settings(BaseSettings):
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
     ollama_chat_model: str = Field(default="qwen3:8b", alias="OLLAMA_CHAT_MODEL")
     ollama_embed_model: str = Field(default="nomic-embed-text", alias="OLLAMA_EMBED_MODEL")
-    ollama_request_timeout_seconds: int = Field(default=90, alias="OLLAMA_REQUEST_TIMEOUT_SECONDS")
+    ollama_request_timeout_seconds: int = Field(default=180, alias="OLLAMA_REQUEST_TIMEOUT_SECONDS")
     ollama_podcast_timeout_seconds: int = Field(default=180, alias="OLLAMA_PODCAST_TIMEOUT_SECONDS")
+    ollama_disable_thinking: bool = Field(default=True, alias="OLLAMA_DISABLE_THINKING")
+    ollama_prewarm_on_startup: bool = Field(default=True, alias="OLLAMA_PREWARM_ON_STARTUP")
+    ollama_prewarm_timeout_seconds: int = Field(default=30, alias="OLLAMA_PREWARM_TIMEOUT_SECONDS")
 
     enable_cross_encoder_rerank: bool = Field(default=False, alias="ENABLE_CROSS_ENCODER_RERANK")
     cross_encoder_model: str = Field(
@@ -60,6 +63,7 @@ class Settings(BaseSettings):
 
     zep_api_key: str = Field(default="", alias="ZEP_API_KEY")
     zep_project_id: str = Field(default="", alias="ZEP_PROJECT_ID")
+    enable_zep_memory: bool = Field(default=False, alias="ENABLE_ZEP_MEMORY")
 
     assemblyai_api_key: str = Field(default="", alias="ASSEMBLYAI_API_KEY")
     firecrawl_api_key: str = Field(default="", alias="FIRECRAWL_API_KEY")
@@ -74,11 +78,15 @@ class Settings(BaseSettings):
     oauth_state_ttl_seconds: int = Field(default=600, alias="OAUTH_STATE_TTL_SECONDS")
     oauth_exchange_code_ttl_seconds: int = Field(default=180, alias="OAUTH_EXCHANGE_CODE_TTL_SECONDS")
     podcast_tts_provider: str = Field(default="kokoro", alias="PODCAST_TTS_PROVIDER")
+    kokoro_repo_id: str = Field(default="hexgrad/Kokoro-82M", alias="KOKORO_REPO_ID")
+    kokoro_spacy_model: str = Field(default="en_core_web_sm", alias="KOKORO_SPACY_MODEL")
     kokoro_voice_host: str = Field(default="af_heart", alias="KOKORO_VOICE_HOST")
     kokoro_voice_analyst: str = Field(default="am_adam", alias="KOKORO_VOICE_ANALYST")
     podcast_context_max_chars: int = Field(default=4500, alias="PODCAST_CONTEXT_MAX_CHARS")
     podcast_chunks_per_source: int = Field(default=3, alias="PODCAST_CHUNKS_PER_SOURCE")
     podcast_chunk_excerpt_chars: int = Field(default=420, alias="PODCAST_CHUNK_EXCERPT_CHARS")
+    podcast_tts_timeout_seconds: int = Field(default=600, alias="PODCAST_TTS_TIMEOUT_SECONDS")
+    podcast_mix_timeout_seconds: int = Field(default=60, alias="PODCAST_MIX_TIMEOUT_SECONDS")
     usage_cost_per_1k_prompt: float = Field(default=0.0, alias="USAGE_COST_PER_1K_PROMPT")
     usage_cost_per_1k_response: float = Field(default=0.0, alias="USAGE_COST_PER_1K_RESPONSE")
 
@@ -96,6 +104,10 @@ def validate_required_runtime_settings(settings: Settings) -> None:
     import logging
 
     _logger = logging.getLogger(__name__)
+
+    if not settings.enable_zep_memory:
+        _logger.info("Zep memory disabled — using local DB summaries only.")
+        return
 
     if not settings.zep_api_key or not settings.zep_project_id:
         _logger.warning(

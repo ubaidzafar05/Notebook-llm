@@ -28,6 +28,7 @@ from app.core.metrics import metrics_middleware
 from app.core.metrics import router as metrics_router
 from app.core.redis_client import get_async_redis_client
 from app.db.session import init_db
+from app.generation.ollama_client import OllamaClient
 from app.vector_store.milvus_client import VectorStoreClient
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,12 @@ async def lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     overall_status = overall_system_state(dependency_status)
     if overall_status == "degraded":
         logger.warning("Dependency health degraded: %s", dependency_status)
+    if settings.ollama_prewarm_on_startup and settings.environment != "test":
+        try:
+            OllamaClient().warm_model(timeout_seconds=settings.ollama_prewarm_timeout_seconds)
+            logger.info("Ollama model prewarm completed model=%s", settings.ollama_chat_model)
+        except AppError as exc:
+            logger.warning("Ollama model prewarm failed code=%s message=%s", exc.code, exc.message)
 
     try:
         yield

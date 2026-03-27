@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import AuthenticatedUser, get_current_user
-from app.core.config import get_settings
+from app.core.config import ROOT_DIR, get_settings
 from app.core.response_envelope import error_response, success_response
 from app.db.models import PodcastJob
 from app.db.repositories.notebook_repo import NotebookRepository
@@ -44,6 +44,7 @@ def create_podcast(
         payload.title,
         payload.voice,
         retry_max=settings.job_max_retries_podcast,
+        job_timeout_seconds=settings.ollama_podcast_timeout_seconds + settings.podcast_tts_timeout_seconds + settings.podcast_mix_timeout_seconds + 30,
     )
     return success_response(
         data={
@@ -95,7 +96,7 @@ def download_podcast_audio(
     if podcast is None or not podcast.output_path:
         return error_response(code="NOT_FOUND", message="Audio not ready", request_id=request_id, status_code=404)
 
-    output_path = Path(podcast.output_path)
+    output_path = _resolve_output_path(podcast.output_path)
     if not output_path.exists():
         return error_response(code="NOT_FOUND", message="Audio file missing", request_id=request_id, status_code=404)
     return FileResponse(path=output_path, media_type="audio/mpeg", filename=output_path.name)
@@ -130,6 +131,7 @@ def retry_podcast(
         payload.title,
         payload.voice or original.voice_label,
         retry_max=settings.job_max_retries_podcast,
+        job_timeout_seconds=settings.ollama_podcast_timeout_seconds + settings.podcast_tts_timeout_seconds + settings.podcast_mix_timeout_seconds + 30,
     )
     return success_response(
         data={
@@ -169,6 +171,7 @@ def create_notebook_podcast(
         payload.title,
         payload.voice,
         retry_max=settings.job_max_retries_podcast,
+        job_timeout_seconds=settings.ollama_podcast_timeout_seconds + settings.podcast_tts_timeout_seconds + settings.podcast_mix_timeout_seconds + 30,
     )
     return success_response(
         data={
@@ -257,6 +260,7 @@ def retry_notebook_podcast(
         payload.title,
         payload.voice or original.voice_label,
         retry_max=settings.job_max_retries_podcast,
+        job_timeout_seconds=settings.ollama_podcast_timeout_seconds + settings.podcast_tts_timeout_seconds + settings.podcast_mix_timeout_seconds + 30,
     )
     return success_response(
         data={
@@ -298,3 +302,10 @@ def _serialize_podcast(podcast: PodcastJob) -> dict[str, object]:
         "created_at": podcast.created_at.isoformat(),
         "updated_at": podcast.updated_at.isoformat(),
     }
+
+
+def _resolve_output_path(raw_path: str) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    return (ROOT_DIR / path).resolve()

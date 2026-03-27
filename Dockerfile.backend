@@ -12,6 +12,8 @@ COPY alembic.ini .
 COPY scripts scripts
 
 RUN uv sync --no-dev --frozen
+RUN .venv/bin/python -m ensurepip && \
+    .venv/bin/python -m spacy download en_core_web_sm
 
 FROM python:3.11-slim
 
@@ -33,9 +35,13 @@ COPY --from=builder /app/pyproject.toml /app/pyproject.toml
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
+ENV HOME="/app"
+ENV XDG_CACHE_HOME="/app/.cache"
+ENV HF_HOME="/app/.cache/huggingface"
+ENV TRANSFORMERS_CACHE="/app/.cache/huggingface"
 
-RUN mkdir -p /app/outputs/podcasts /app/outputs/uploads /app/data/processed && \
-    chown -R appuser:appuser /app/outputs /app/data
+RUN mkdir -p /app/.cache/huggingface /app/outputs/podcasts /app/outputs/uploads /app/data/processed && \
+    chown -R appuser:appuser /app/.cache /app/outputs /app/data
 
 USER appuser
 

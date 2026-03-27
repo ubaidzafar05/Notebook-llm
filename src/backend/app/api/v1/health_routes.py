@@ -46,8 +46,10 @@ def readiness_check(request: Request) -> JSONResponse:
                 "postgres": statuses["postgres"].to_dict(),
                 "redis": statuses["redis"].to_dict(),
                 "milvus": statuses["milvus"].to_dict(),
-                "zep": statuses["zep"].to_dict(),
                 "provider_gate": statuses["provider_gate"].to_dict(),
+            },
+            "optional_dependencies": {
+                "zep": statuses["zep"].to_dict(),
             },
         },
         request_id=request_id,

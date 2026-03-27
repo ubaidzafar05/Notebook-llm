@@ -14,6 +14,7 @@ class TaskQueue:
         fn: Callable[..., None],
         *args: Any,
         retry_max: int = 2,
+        job_timeout_seconds: int | None = None,
     ) -> dict[str, str | None]:
         if not get_settings().rq_strict_mode:
             raise AppError(
@@ -21,7 +22,12 @@ class TaskQueue:
                 message="Only strict RQ queue mode is supported",
                 status_code=500,
             )
-        dispatch = QueueStateStore().enqueue(fn, *args, retry_max=retry_max)
+        dispatch = QueueStateStore().enqueue(
+            fn,
+            *args,
+            retry_max=retry_max,
+            job_timeout_seconds=job_timeout_seconds,
+        )
         return {
             "mode": "rq",
             "queue_job_id": dispatch.queue_job_id,

@@ -13,7 +13,15 @@ class ZepClient:
         self.settings = get_settings()
 
     def is_enabled(self) -> bool:
-        return bool(self.settings.zep_api_key and self.settings.zep_project_id)
+        if not self.settings.enable_zep_memory:
+            return False
+        if not self.settings.zep_api_key or not self.settings.zep_project_id:
+            return False
+        try:
+            UUID(self.settings.zep_project_id)
+        except ValueError:
+            return False
+        return True
 
     def upsert_message(self, user_id: str, session_id: str, role: str, content: str) -> None:
         self._validate_required_config()

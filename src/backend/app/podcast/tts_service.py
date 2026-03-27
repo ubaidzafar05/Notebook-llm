@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import importlib
+import logging
+from functools import lru_cache
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 from app.core.circuit_breaker import CircuitBreaker
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 from schemas.podcast_script import PodcastScript, PodcastTurn
+
+logger = logging.getLogger(__name__)
 
 
 class TtsService:
@@ -24,17 +29,38 @@ class TtsService:
 
     @CircuitBreaker(name="kokoro_tts", failure_threshold=2, recovery_timeout=120, exceptions=(AppError, Exception))
     def synthesize_script(self, script: PodcastScript, output_dir: Path, voice_label: str | None = None) -> list[Path]:
-        engine = _load_kokoro_engine()
+        engine = _get_cached_kokoro_engine()
         output_dir.mkdir(parents=True, exist_ok=True)
         tracks: list[Path] = []
         for idx, turn in enumerate(script.turns, start=1):
             wav_path = output_dir / f"line_{idx:03d}.wav"
+            logger.info(
+                "Podcast TTS turn started turn=%s speaker=%s voice_label=%s output=%s",
+                idx,
+                turn.speaker,
+                voice_label,
+                wav_path.name,
+            )
+            started_at = perf_counter()
             _synthesize_turn(engine=engine, turn=turn, output_path=wav_path, voice_label=voice_label)
+            elapsed_ms = int((perf_counter() - started_at) * 1000)
+            logger.info(
+                "Podcast TTS turn completed turn=%s elapsed_ms=%s bytes=%s",
+                idx,
+                elapsed_ms,
+                wav_path.stat().st_size,
+            )
             tracks.append(wav_path)
         return tracks
 
 
+@lru_cache(maxsize=1)
+def _get_cached_kokoro_engine() -> Any:
+    return _load_kokoro_engine()
+
+
 def _load_kokoro_engine() -> Any:
+    settings = get_settings()
     try:
         module = importlib.import_module("kokoro")
     except Exception as exc:  # noqa: BLE001
@@ -50,7 +76,41 @@ def _load_kokoro_engine() -> Any:
             message="Kokoro package does not expose KPipeline",
             status_code=500,
         )
-    return module.KPipeline(lang_code="a")
+    _require_spacy_model(settings.kokoro_spacy_model)
+    try:
+        return module.KPipeline(lang_code="a", repo_id=settings.kokoro_repo_id)
+    except AppError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise AppError(
+            code="KOKORO_UNAVAILABLE",
+            message="Kokoro pipeline initialization failed",
+            status_code=500,
+            details={
+                "repo_id": settings.kokoro_repo_id,
+                "spacy_model": settings.kokoro_spacy_model,
+            },
+        ) from exc
+
+
+def _require_spacy_model(model_name: str) -> None:
+    try:
+        spacy = importlib.import_module("spacy")
+    except Exception as exc:  # noqa: BLE001
+        raise AppError(
+            code="KOKORO_DEPENDENCY_MISSING",
+            message="spaCy is required for Kokoro podcast synthesis",
+            status_code=500,
+            details={"dependency": "spacy", "model": model_name},
+        ) from exc
+    if spacy.util.is_package(model_name):
+        return
+    raise AppError(
+        code="KOKORO_DEPENDENCY_MISSING",
+        message="Kokoro English spaCy model is missing from the runtime image",
+        status_code=500,
+        details={"dependency": model_name},
+    )
 
 
 def _synthesize_turn(*, engine: Any, turn: PodcastTurn, output_path: Path, voice_label: str | None) -> None:

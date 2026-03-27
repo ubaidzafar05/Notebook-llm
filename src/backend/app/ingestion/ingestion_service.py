@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.config import ROOT_DIR
 from app.core.exceptions import AppError
 from app.db.models import Source, SourceStatus, SourceType
 from app.db.repositories.source_repo import ChunkRepository, SourceRepository
@@ -58,12 +59,13 @@ class IngestionService:
         checksum: str,
     ) -> Source:
         source_type = infer_source_type_from_filename(filename)
+        stored_path = _storage_record_path(path)
         source = self.sources.create(
             user_id=user_id,
             notebook_id=notebook_id,
             name=filename,
             source_type=source_type.value,
-            path_or_url=str(path),
+            path_or_url=str(stored_path),
             checksum=checksum,
             metadata_json={"source": "upload"},
         )
@@ -88,6 +90,13 @@ class IngestionService:
         try:
             parsed_segments = self._parse_source(source)
             chunk_rows = self._chunk_segments(source=source, segments=parsed_segments)
+            if not chunk_rows:
+                raise AppError(
+                    code="EMPTY_SOURCE",
+                    message="Source did not produce any indexable chunks",
+                    status_code=400,
+                    details={"failure_stage": "chunk"},
+                )
             created_chunks = self.chunks.bulk_create(
                 source_id=source.id,
                 user_id=source.user_id,
@@ -133,20 +142,20 @@ class IngestionService:
     def _parse_source(self, source: Source) -> list[ParsedSegment]:
         source_type = SourceType(source.source_type)
         if source_type == SourceType.PDF:
-            return parse_pdf(Path(source.path_or_url))
+            return parse_pdf(_resolve_storage_path(Path(source.path_or_url)))
         if source_type == SourceType.TEXT:
-            return parse_text(Path(source.path_or_url))
+            return parse_text(_resolve_storage_path(Path(source.path_or_url)))
         if source_type == SourceType.MARKDOWN:
-            return parse_markdown(Path(source.path_or_url))
+            return parse_markdown(_resolve_storage_path(Path(source.path_or_url)))
         if source_type == SourceType.AUDIO:
-            return self.audio_parser.parse(Path(source.path_or_url))
+            return self.audio_parser.parse(_resolve_storage_path(Path(source.path_or_url)))
         if source_type == SourceType.WEB:
             return parse_web_url(source.path_or_url)
         if source_type == SourceType.YOUTUBE:
-            work_dir = Path(source.path_or_url)
+            work_dir = _resolve_storage_path(Path(source.path_or_url))
             if work_dir.exists():
                 return self.youtube_parser.parse(url=source.metadata_json.get("url", ""), work_dir=work_dir)
-            temp_dir = Path("data/processed") / source.id
+            temp_dir = (ROOT_DIR / "data" / "processed" / source.id).resolve()
             temp_dir.mkdir(parents=True, exist_ok=True)
             return self.youtube_parser.parse(url=source.path_or_url, work_dir=temp_dir)
         raise AppError(code="UNSUPPORTED_SOURCE", message=f"Unsupported source type: {source_type.value}", status_code=400)
@@ -268,3 +277,17 @@ def _failure_stage_for_code(code: str, details: dict[str, Any]) -> str:
 def _sanitize_failure_detail(message: str) -> str:
     clean = message.strip().replace("\n", " ")
     return clean[:400]
+
+
+def _resolve_storage_path(path: Path) -> Path:
+    if path.is_absolute():
+        return path
+    return (ROOT_DIR / path).resolve()
+
+
+def _storage_record_path(path: Path) -> Path:
+    absolute_path = _resolve_storage_path(path)
+    try:
+        return absolute_path.relative_to(ROOT_DIR)
+    except ValueError:
+        return absolute_path

@@ -24,11 +24,17 @@ class QueueStateStore:
         self.settings = get_settings()
         self.queue_name = self.settings.rq_queue_name
 
-    def enqueue(self, fn: Callable[..., None], *args: Any, retry_max: int) -> QueueDispatch:
+    def enqueue(
+        self,
+        fn: Callable[..., None],
+        *args: Any,
+        retry_max: int,
+        job_timeout_seconds: int | None = None,
+    ) -> QueueDispatch:
         redis = self._redis()
         queue = Queue(self.queue_name, connection=redis)
         retry = Retry(max=retry_max, interval=[15, 45])
-        rq_job = queue.enqueue(fn, *args, retry=retry)
+        rq_job = queue.enqueue(fn, *args, retry=retry, job_timeout=job_timeout_seconds)
         return QueueDispatch(queue_job_id=rq_job.id, queue_name=self.queue_name)
 
     def cancel(self, queue_job_id: str) -> bool:

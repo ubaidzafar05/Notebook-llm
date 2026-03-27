@@ -10,7 +10,7 @@ from app.api.dependencies import rate_limit_dependency
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import AuthenticatedUser, get_current_user
-from app.core.config import get_settings
+from app.core.config import ROOT_DIR, get_settings
 from app.core.exceptions import AppError
 from app.core.response_envelope import error_response, success_response
 from app.db.models import JobRecord, Source, SourceType
@@ -79,7 +79,7 @@ def upload_source(
             status_code=413,
         )
 
-    uploads_dir = Path("data/uploads") / user.id
+    uploads_dir = (ROOT_DIR / "data" / "uploads" / user.id).resolve()
     uploads_dir.mkdir(parents=True, exist_ok=True)
     vector_store = _vector_store_from_request(request)
     ingestion = IngestionService(db=db, vector_store=vector_store)

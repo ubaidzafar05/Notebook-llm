@@ -346,21 +346,91 @@ def export_session(
     user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Response:
-    request_id = getattr(request.state, "request_id", "")
     resolved_notebook_id = _resolved_notebook_id(db, user.id, notebook_id)
-    session = ChatRepository(db).get_session_for_notebook(
+    return _export_session_response(
+        db=db,
         user_id=user.id,
         notebook_id=resolved_notebook_id,
+        session_id=session_id,
+        request=request,
+        format=format,
+        top_k=top_k,
+        similarity_threshold=similarity_threshold,
+        model=model,
+        memory_enabled=memory_enabled,
+        attached_sources=attached_sources,
+    )
+
+
+@router.get("/chat/sessions/{session_id}/export")
+def export_session_legacy(
+    session_id: str,
+    request: Request,
+    format: str = Query(default="md"),
+    top_k: int | None = Query(default=None, ge=1, le=50),
+    similarity_threshold: float | None = Query(default=None, ge=0.0, le=1.0),
+    model: str | None = Query(default=None, max_length=64),
+    memory_enabled: bool | None = Query(default=None),
+    attached_sources: str | None = Query(default=None, max_length=2000),
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    session = ChatRepository(db).get_session(user_id=user.id, session_id=session_id)
+    if session is None:
+        request_id = getattr(request.state, "request_id", "")
+        return error_response(code="NOT_FOUND", message="Session not found", request_id=request_id, status_code=404)
+    notebook_id = session.notebook_id or _resolved_notebook_id(db, user.id, None)
+    return _export_session_response(
+        db=db,
+        user_id=user.id,
+        notebook_id=notebook_id,
+        session_id=session_id,
+        request=request,
+        format=format,
+        top_k=top_k,
+        similarity_threshold=similarity_threshold,
+        model=model,
+        memory_enabled=memory_enabled,
+        attached_sources=attached_sources,
+    )
+
+
+
+def _filter_candidates(candidates: list[VectorRecord], source_ids: list[str]) -> list[VectorRecord]:
+    if not source_ids:
+        return candidates
+    source_set = set(source_ids)
+    return [candidate for candidate in candidates if candidate.source_id in source_set]
+
+
+def _export_session_response(
+    *,
+    db: Session,
+    user_id: str,
+    notebook_id: str,
+    session_id: str,
+    request: Request,
+    format: str,
+    top_k: int | None,
+    similarity_threshold: float | None,
+    model: str | None,
+    memory_enabled: bool | None,
+    attached_sources: str | None,
+) -> Response:
+    request_id = getattr(request.state, "request_id", "")
+    session = ChatRepository(db).get_session_for_notebook(
+        user_id=user_id,
+        notebook_id=notebook_id,
         session_id=session_id,
     )
     if session is None:
         return error_response(code="NOT_FOUND", message="Session not found", request_id=request_id, status_code=404)
-    notebook = NotebookRepository(db).get_for_user(resolved_notebook_id, user.id)
+    notebook = NotebookRepository(db).get_for_user(notebook_id, user_id)
     if notebook is None:
         return error_response(code="NOT_FOUND", message="Notebook not found", request_id=request_id, status_code=404)
     messages = ChatRepository(db).list_messages_for_notebook(
-        user_id=user.id,
-        notebook_id=resolved_notebook_id,
+        user_id=user_id,
+        notebook_id=notebook_id,
         session_id=session_id,
     )
     exporter = ChatExportService()
@@ -373,8 +443,8 @@ def export_session(
     )
     sources, chunks = _load_export_sources_and_chunks(
         db=db,
-        user_id=user.id,
-        notebook_id=resolved_notebook_id,
+        user_id=user_id,
+        notebook_id=notebook_id,
         messages=messages,
         context=context,
     )
@@ -395,17 +465,9 @@ def export_session(
             headers = {"Content-Disposition": f"attachment; filename={session.title or 'session'}.pdf"}
             return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
         except Exception as exc:  # noqa: BLE001
-            logger.exception("PDF export failed", extra={"session_id": session_id, "notebook_id": resolved_notebook_id})
+            logger.exception("PDF export failed", extra={"session_id": session_id, "notebook_id": notebook_id})
             return error_response(code="PDF_EXPORT_FAILED", message=str(exc), request_id=request_id, status_code=500)
     return error_response(code="INVALID_FORMAT", message="Unsupported export format", request_id=request_id, status_code=400)
-
-
-
-def _filter_candidates(candidates: list[VectorRecord], source_ids: list[str]) -> list[VectorRecord]:
-    if not source_ids:
-        return candidates
-    source_set = set(source_ids)
-    return [candidate for candidate in candidates if candidate.source_id in source_set]
 
 
 def _build_export_context(
