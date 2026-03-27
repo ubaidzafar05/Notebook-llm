@@ -54,3 +54,17 @@ def test_load_kokoro_engine_passes_configured_repo_id(monkeypatch: pytest.Monkey
     tts_service._load_kokoro_engine()
 
     assert factory.calls == [{"lang_code": "a", "repo_id": "hexgrad/Kokoro-82M"}]
+
+
+def test_warm_runtime_loads_both_voices(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    class _FakeEngine:
+        def load_voice(self, voice: str) -> None:
+            calls.append(voice)
+
+    monkeypatch.setattr(tts_service, "_get_cached_kokoro_engine", lambda: _FakeEngine())
+
+    tts_service.TtsService().warm_runtime()
+
+    assert calls == ["af_heart", "am_adam"]

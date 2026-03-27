@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import importlib
 from typing import cast
 
 import pytest
 
 from app.core.config import reset_settings_cache
-from app.core.health_checks import DependencyStatus, _check_milvus, _check_zep
+from app.core.health_checks import DependencyStatus, _check_kokoro_runtime, _check_milvus, _check_zep
 from app.vector_store.milvus_client import VectorStoreClient
 
 
@@ -53,3 +54,39 @@ def test_zep_check_is_skipped_when_memory_disabled(monkeypatch: pytest.MonkeyPat
     reset_settings_cache()
     assert status.state == "skipped"
     assert status.detail == "Zep memory disabled"
+
+
+def test_kokoro_runtime_is_up_when_spacy_model_exists(monkeypatch: pytest.MonkeyPatch) -> None:
+    real_import_module = importlib.import_module
+    fake_spacy = type("FakeSpacy", (), {"util": type("Util", (), {"is_package": staticmethod(lambda name: name == "en_core_web_sm")})})()
+    fake_kokoro = type("FakeKokoro", (), {"KPipeline": object})()
+
+    def _fake_import(name: str):
+        if name == "spacy":
+            return fake_spacy
+        if name == "kokoro":
+            return fake_kokoro
+        return real_import_module(name)
+
+    monkeypatch.setattr(importlib, "import_module", _fake_import)
+    status = _check_kokoro_runtime()
+    assert status.state == "up"
+    assert status.detail == "Kokoro runtime ready"
+
+
+def test_kokoro_runtime_is_down_when_spacy_model_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    real_import_module = importlib.import_module
+    fake_spacy = type("FakeSpacy", (), {"util": type("Util", (), {"is_package": staticmethod(lambda name: False)})})()
+    fake_kokoro = type("FakeKokoro", (), {"KPipeline": object})()
+
+    def _fake_import(name: str):
+        if name == "spacy":
+            return fake_spacy
+        if name == "kokoro":
+            return fake_kokoro
+        return real_import_module(name)
+
+    monkeypatch.setattr(importlib, "import_module", _fake_import)
+    status = _check_kokoro_runtime()
+    assert status.state == "down"
+    assert "spaCy model missing" in status.detail

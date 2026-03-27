@@ -53,6 +53,17 @@ class TtsService:
             tracks.append(wav_path)
         return tracks
 
+    def warm_runtime(self) -> None:
+        engine = _get_cached_kokoro_engine()
+        engine.load_voice(self.settings.kokoro_voice_host)
+        engine.load_voice(self.settings.kokoro_voice_analyst)
+        logger.info(
+            "Kokoro runtime prewarm completed repo_id=%s host_voice=%s analyst_voice=%s",
+            self.settings.kokoro_repo_id,
+            self.settings.kokoro_voice_host,
+            self.settings.kokoro_voice_analyst,
+        )
+
 
 @lru_cache(maxsize=1)
 def _get_cached_kokoro_engine() -> Any:

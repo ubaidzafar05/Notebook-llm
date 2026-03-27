@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     kokoro_spacy_model: str = Field(default="en_core_web_sm", alias="KOKORO_SPACY_MODEL")
     kokoro_voice_host: str = Field(default="af_heart", alias="KOKORO_VOICE_HOST")
     kokoro_voice_analyst: str = Field(default="am_adam", alias="KOKORO_VOICE_ANALYST")
+    kokoro_prewarm_on_startup: bool = Field(default=True, alias="KOKORO_PREWARM_ON_STARTUP")
     podcast_context_max_chars: int = Field(default=4500, alias="PODCAST_CONTEXT_MAX_CHARS")
     podcast_chunks_per_source: int = Field(default=3, alias="PODCAST_CHUNKS_PER_SOURCE")
     podcast_chunk_excerpt_chars: int = Field(default=420, alias="PODCAST_CHUNK_EXCERPT_CHARS")

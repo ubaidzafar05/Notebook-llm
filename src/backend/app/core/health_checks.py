@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib
 from time import perf_counter
 from typing import Literal
 from uuid import UUID
@@ -40,15 +41,17 @@ def collect_dependency_health(
     statuses["redis"] = _check_redis()
     statuses["milvus"] = _check_milvus(vector_store=vector_store)
     statuses["ollama"] = _check_http_service(path="/api/tags", service_name="ollama")
+    statuses["kokoro"] = _check_kokoro_runtime()
     statuses["zep"] = _check_zep()
     statuses["provider_gate"] = _check_provider_gate(statuses)
     return statuses
 
 
 def overall_system_state(statuses: dict[str, DependencyStatus]) -> Literal["ok", "degraded"]:
-    required = ("postgres", "redis", "milvus", "provider_gate")
+    required = ("postgres", "redis", "milvus", "provider_gate", "kokoro")
     for name in required:
-        if statuses[name].state != "up":
+        status = statuses.get(name)
+        if status is None or status.state != "up":
             return "degraded"
     return "ok"
 
@@ -178,3 +181,23 @@ def _check_provider_gate(statuses: dict[str, DependencyStatus]) -> DependencySta
         detail=f"No generation provider available (ollama={statuses['ollama'].state})",
         latency_ms=None,
     )
+
+
+def _check_kokoro_runtime() -> DependencyStatus:
+    settings = get_settings()
+    start = perf_counter()
+    try:
+        spacy = importlib.import_module("spacy")
+        kokoro = importlib.import_module("kokoro")
+    except Exception as exc:  # noqa: BLE001
+        return DependencyStatus(state="down", detail=f"Kokoro runtime unavailable: {exc}", latency_ms=None)
+    if not hasattr(kokoro, "KPipeline"):
+        return DependencyStatus(state="down", detail="Kokoro package missing KPipeline", latency_ms=None)
+    if not spacy.util.is_package(settings.kokoro_spacy_model):
+        return DependencyStatus(
+            state="down",
+            detail=f"Kokoro spaCy model missing: {settings.kokoro_spacy_model}",
+            latency_ms=None,
+        )
+    latency_ms = int((perf_counter() - start) * 1000)
+    return DependencyStatus(state="up", detail="Kokoro runtime ready", latency_ms=latency_ms)
