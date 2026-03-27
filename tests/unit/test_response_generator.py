@@ -25,6 +25,7 @@ def test_generate_answer_returns_insufficient_context_without_valid_citations() 
     )
     assert "enough information" in answer
     assert model_info["provider"] == "none"
+    assert model_info["grounding_state"] == "insufficient"
     assert confidence == "low"
 
 
@@ -54,6 +55,7 @@ def test_generate_answer_returns_insufficient_context_when_overlap_is_weak() -> 
     )
     assert "enough information" in answer
     assert model_info["provider"] == "none"
+    assert model_info["grounding_state"] == "insufficient"
     assert confidence == "low"
 
 
@@ -90,6 +92,7 @@ def test_generate_answer_uses_llm_for_supported_context(monkeypatch: pytest.Monk
     )
     assert "Ollama" in answer
     assert model_info["provider"] == "ollama"
+    assert model_info["grounding_state"] == "grounded"
     assert confidence in {"medium", "high"}
 
 
@@ -133,6 +136,7 @@ def test_generate_answer_accepts_supported_listing_question(monkeypatch: pytest.
     )
     assert "Postgres" in answer
     assert model_info["provider"] == "ollama"
+    assert model_info["grounding_state"] == "grounded"
     assert confidence in {"medium", "high"}
 
 
@@ -171,4 +175,42 @@ def test_generate_answer_uses_extractive_fallback_for_blank_model_output(
     )
     assert "Postgres" in answer
     assert model_info["fallback_used"] == "extractive"
+    assert model_info["grounding_state"] == "grounded"
+    assert confidence in {"medium", "high"}
+
+
+def test_generate_answer_marks_weak_support_without_refusing(monkeypatch: pytest.MonkeyPatch) -> None:
+    contexts = [
+        VectorRecord(
+            chunk_id="c1",
+            source_id="s1",
+            user_id="u1",
+            text="The system mentions queue isolation, worker scaling, and podcast synthesis throughput.",
+            vector=[],
+            metadata={},
+        )
+    ]
+    citations = [
+        Citation(
+            source_id="s1",
+            chunk_id="c1",
+            excerpt="mentions queue isolation, worker scaling, and podcast synthesis throughput",
+            page_number=1,
+            score=0.28,
+        )
+    ]
+
+    def _fake_generate(*args: object, **kwargs: object) -> tuple[str, dict[str, str]]:
+        _ = (args, kwargs)
+        return ("It mentions queue isolation and worker scaling for podcast synthesis.", {"provider": "ollama", "fallback_used": "false"})
+
+    monkeypatch.setattr("app.generation.response_generator.LlmRouter.generate", _fake_generate)
+    answer, model_info, confidence = ResponseGenerator().generate_answer(
+        question="What does it say about scaling latency budgeting resilience cache paths?",
+        contexts=contexts,
+        citations=citations,
+    )
+
+    assert "worker scaling" in answer
+    assert model_info["grounding_state"] == "weak_support"
     assert confidence in {"medium", "high"}

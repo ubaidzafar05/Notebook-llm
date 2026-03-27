@@ -41,6 +41,9 @@ STOPWORDS = {
     "your",
 }
 
+INSUFFICIENT_SUPPORT_THRESHOLD = 0.10
+WEAK_SUPPORT_THRESHOLD = 0.22
+
 
 class ResponseGenerator:
     def __init__(self) -> None:
@@ -64,10 +67,17 @@ class ResponseGenerator:
             return cached_text, {"provider": "cache", "fallback_used": "false"}, confidence_val
 
         support_score = _support_score(question=question, contexts=contexts, citations=citations)
-        if support_score < 0.12:
+        grounding_state = _grounding_state_for_support(support_score)
+        if grounding_state == "insufficient":
             return (
                 "I do not have enough information in your sources to answer that.",
-                {"provider": "none", "fallback_used": "false", "support_score": f"{support_score:.3f}"},
+                {
+                    "provider": "none",
+                    "fallback_used": "false",
+                    "support_score": f"{support_score:.3f}",
+                    "grounding_state": grounding_state,
+                    "retrieval_count": str(len(contexts)),
+                },
                 "low",
             )
 
@@ -91,6 +101,9 @@ class ResponseGenerator:
             citations=citations,
             contexts=contexts,
         )
+        model_info["support_score"] = f"{support_score:.3f}"
+        model_info["grounding_state"] = grounding_state
+        model_info["retrieval_count"] = str(len(contexts))
         final_answer = _append_missing_citations(answer_text=answer_text, citations=citations)
         confidence = _compute_confidence(citations=citations, contexts=contexts)
 
@@ -132,6 +145,14 @@ def _normalize_generated_answer(
         next_info["fallback_used"] = "extractive"
         return fallback, next_info
     return cleaned, model_info
+
+
+def _grounding_state_for_support(score: float) -> Literal["insufficient", "weak_support", "grounded"]:
+    if score < INSUFFICIENT_SUPPORT_THRESHOLD:
+        return "insufficient"
+    if score < WEAK_SUPPORT_THRESHOLD:
+        return "weak_support"
+    return "grounded"
 
 
 def _extractive_fallback_answer(

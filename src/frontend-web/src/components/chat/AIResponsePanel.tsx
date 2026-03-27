@@ -40,6 +40,7 @@ export function AIResponsePanel({
     }
     return [...message.citations].sort((left, right) => (right.score ?? 0) - (left.score ?? 0));
   }, [message?.citations]);
+  const groundingTone = resolveGroundingTone(message?.modelInfo?.groundingState, message?.modelInfo?.confidence);
 
   return (
     <motion.section
@@ -63,6 +64,18 @@ export function AIResponsePanel({
           <p className="mt-1 text-xs text-[color:var(--text-kicker)]">
             {message ? formatRelativeTime(message.timestamp) : "Ready"}
           </p>
+          {groundingTone ? (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]"
+              style={{
+                borderColor: groundingTone.border,
+                backgroundColor: groundingTone.bg,
+                color: groundingTone.text,
+              }}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {groundingTone.label}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -147,4 +160,35 @@ export function AIResponsePanel({
       ) : null}
     </motion.section>
   );
+}
+
+function resolveGroundingTone(
+  groundingState: "grounded" | "weak_support" | "insufficient" | undefined,
+  confidence: "low" | "medium" | "high" | undefined,
+): { label: string; bg: string; border: string; text: string } | null {
+  if (groundingState === "weak_support") {
+    return {
+      label: "Weak support",
+      bg: "rgba(214, 166, 77, 0.16)",
+      border: "rgba(214, 166, 77, 0.4)",
+      text: "rgba(136, 88, 10, 0.96)",
+    };
+  }
+  if (groundingState === "insufficient") {
+    return {
+      label: "Insufficient support",
+      bg: "rgba(191, 97, 106, 0.16)",
+      border: "rgba(191, 97, 106, 0.38)",
+      text: "rgba(127, 43, 51, 0.96)",
+    };
+  }
+  if (groundingState === "grounded" || confidence) {
+    return {
+      label: confidence === "high" ? "Strong support" : "Grounded",
+      bg: "rgba(96, 166, 122, 0.14)",
+      border: "rgba(96, 166, 122, 0.36)",
+      text: "rgba(34, 94, 53, 0.96)",
+    };
+  }
+  return null;
 }
