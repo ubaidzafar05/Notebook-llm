@@ -61,6 +61,7 @@ outputs/
 src/frontend-web/vite.config.js
 outputs/podcasts/*
 data/uploads/*
+src/backend/data/uploads/*
 data/processed/*
 node_modules/
 .idea/

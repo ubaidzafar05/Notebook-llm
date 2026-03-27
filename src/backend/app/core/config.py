@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from uuid import UUID
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+ROOT_DIR = Path(__file__).resolve().parents[4]
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", env_file_encoding="utf-8", extra="ignore")
 
     environment: str = Field(default="development", alias="ENVIRONMENT")
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
@@ -39,6 +42,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
     ollama_chat_model: str = Field(default="qwen3:8b", alias="OLLAMA_CHAT_MODEL")
     ollama_embed_model: str = Field(default="nomic-embed-text", alias="OLLAMA_EMBED_MODEL")
+    ollama_request_timeout_seconds: int = Field(default=90, alias="OLLAMA_REQUEST_TIMEOUT_SECONDS")
+    ollama_podcast_timeout_seconds: int = Field(default=180, alias="OLLAMA_PODCAST_TIMEOUT_SECONDS")
 
     enable_cross_encoder_rerank: bool = Field(default=False, alias="ENABLE_CROSS_ENCODER_RERANK")
     cross_encoder_model: str = Field(
@@ -71,6 +76,9 @@ class Settings(BaseSettings):
     podcast_tts_provider: str = Field(default="kokoro", alias="PODCAST_TTS_PROVIDER")
     kokoro_voice_host: str = Field(default="af_heart", alias="KOKORO_VOICE_HOST")
     kokoro_voice_analyst: str = Field(default="am_adam", alias="KOKORO_VOICE_ANALYST")
+    podcast_context_max_chars: int = Field(default=4500, alias="PODCAST_CONTEXT_MAX_CHARS")
+    podcast_chunks_per_source: int = Field(default=3, alias="PODCAST_CHUNKS_PER_SOURCE")
+    podcast_chunk_excerpt_chars: int = Field(default=420, alias="PODCAST_CHUNK_EXCERPT_CHARS")
     usage_cost_per_1k_prompt: float = Field(default=0.0, alias="USAGE_COST_PER_1K_PROMPT")
     usage_cost_per_1k_response: float = Field(default=0.0, alias="USAGE_COST_PER_1K_RESPONSE")
 

@@ -25,7 +25,11 @@ if config.config_file_name is not None:
 load_dotenv(ROOT_DIR / ".env")
 reset_settings_cache()
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+database_url_override = config.attributes.get("database_url_override")
+if isinstance(database_url_override, str) and database_url_override:
+    config.set_main_option("sqlalchemy.url", database_url_override)
+else:
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 

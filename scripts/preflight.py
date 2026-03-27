@@ -45,7 +45,6 @@ def main() -> int:
         _check_redis(settings.redis_url),
         _check_milvus(settings.milvus_uri, settings.milvus_collection),
         _check_ollama(settings.ollama_base_url),
-        _check_openrouter(settings.openrouter_base_url, settings.openrouter_api_key),
         _check_zep(settings.zep_project_id, settings.zep_api_key),
         _check_ffmpeg(),
         _check_kokoro(),
@@ -174,25 +173,6 @@ def _check_ollama(base_url: str) -> CheckResult:
     return _result(name="ollama", status="fail", detail=f"Ollama returned {response.status_code}", required=False, start=start)
 
 
-def _check_openrouter(base_url: str, api_key: str) -> CheckResult:
-    start = perf_counter()
-    if not api_key:
-        return _result(name="openrouter", status="skip", detail="OPENROUTER_API_KEY not configured", required=False, start=start)
-    try:
-        response = requests.get(
-            f"{base_url}/models",
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=4,
-        )
-    except requests.RequestException as exc:
-        return _result(name="openrouter", status="fail", detail=f"OpenRouter unreachable: {exc}", required=False, start=start)
-    if response.status_code == 200:
-        return _result(name="openrouter", status="pass", detail="OpenRouter reachable", required=False, start=start)
-    if response.status_code in {401, 403}:
-        return _result(name="openrouter", status="fail", detail="OpenRouter auth failed", required=False, start=start)
-    return _result(name="openrouter", status="fail", detail=f"OpenRouter returned {response.status_code}", required=False, start=start)
-
-
 def _check_zep(project_id: str, api_key: str) -> CheckResult:
     start = perf_counter()
     if not api_key:
@@ -264,19 +244,18 @@ def _check_kokoro() -> CheckResult:
 
 def _check_provider_gate(checks: list[CheckResult]) -> CheckResult:
     ollama_ok = _status_of(checks, "ollama") == "pass"
-    openrouter_ok = _status_of(checks, "openrouter") == "pass"
-    if ollama_ok or openrouter_ok:
+    if ollama_ok:
         return CheckResult(
             name="provider_gate",
             status="pass",
-            detail="At least one generation provider is reachable",
+            detail="Generation provider reachable: ollama",
             required=True,
             latency_ms=None,
         )
     return CheckResult(
         name="provider_gate",
         status="fail",
-        detail="Neither Ollama nor OpenRouter is reachable",
+        detail="Ollama is not reachable",
         required=True,
         latency_ms=None,
     )

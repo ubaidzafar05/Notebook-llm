@@ -6,7 +6,7 @@ Open-source notebook-style AI assistant grounded in your documents with verifiab
 - Multi-user authentication (JWT + Google OAuth)
 - Ingestion for PDF, text, markdown, audio, YouTube, and websites
 - Retrieval-augmented chat with citations
-- Provider failover (Ollama primary, OpenRouter fallback)
+- Local Ollama generation (`qwen3:8b`)
 - Conversation memory with Zep support
 - Podcast generation from source context with Kokoro TTS
 - React notebook workspace on port `3000`
@@ -96,7 +96,6 @@ All responses use:
   - `milvus`
   - `zep`
   - `ollama`
-  - `openrouter`
   - `provider_gate`
 - Startup runs dependency checks and logs degraded mode when required services are unavailable.
 - `GET /api/v1/health/readiness` is the release-gate endpoint:
@@ -108,11 +107,10 @@ All responses use:
 - When Zep is unavailable, memory operations fall back to local DB summaries.
 - For full temporal knowledge graph memory, set `ZEP_API_KEY` and `ZEP_PROJECT_ID`.
 
-## Provider Fallback Behavior
-- Primary generation path: Ollama (`OLLAMA_BASE_URL` + model config).
-- Fallback path: OpenRouter when Ollama fails or is unavailable.
-- Health endpoint exposes provider reachability so failures can be diagnosed before runtime.
-- `OPENROUTER_API_KEY` is optional, but fallback is disabled when not set.
+## LLM Runtime
+- Generation path: local Ollama only (`OLLAMA_BASE_URL` + `OLLAMA_CHAT_MODEL`).
+- The default local chat model is `qwen3:8b`.
+- Health endpoints expose Ollama reachability through `ollama` and `provider_gate`.
 
 ## Podcast TTS
 - Podcast synthesis is Kokoro-only (`PODCAST_TTS_PROVIDER=kokoro`).
@@ -135,8 +133,9 @@ All responses use:
   - `cancel_requested`
 - Local worker command:
   ```bash
-  uv run rq worker "${RQ_QUEUE_NAME:-notebooklm-default}" --url "${REDIS_URL:-redis://localhost:6379/0}"
+  uv run python scripts/run_worker.py
   ```
+- On macOS, `scripts/run_worker.py` sets `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` so RQ work-horses can fork safely.
 - DLQ inspection command:
   ```bash
   uv run rq info --url "${REDIS_URL:-redis://localhost:6379/0}"
@@ -198,7 +197,7 @@ Use this before calling the project production-ready for daily use.
 | --- | --- | --- | --- |
 | Google login returns to UI but no session | Invalid callback/origin config or expired OAuth code | Google console origins/redirect URI, backend logs, `oauth_code` age | Set exact localhost values, retry sign-in |
 | Google auth endpoints return 503 | Redis unavailable for auth state store | `GET /api/v1/health/dependencies` for `redis`, backend logs | Restore Redis; auth routes fail closed by design |
-| Chat fails with model/provider errors | Ollama not running and OpenRouter unavailable | `GET /api/v1/health/dependencies` for `ollama`, `openrouter`, and `provider_gate` | Start Ollama or configure valid `OPENROUTER_API_KEY` |
+| Chat fails with model/provider errors | Ollama is unavailable or the configured local model is missing | `GET /api/v1/health/dependencies` for `ollama` and `provider_gate`, `ollama list` | Start Ollama and ensure `OLLAMA_CHAT_MODEL` is installed locally |
 | Upload/podcast create fails with 503 | Queue strict mode + Redis/RQ outage | `GET /api/v1/health/dependencies` for `redis`, `rq worker` process | Restore Redis/RQ worker and retry |
 | Citations missing in final answer | Retrieved set had no valid citation anchors | Chat final SSE payload `citations` and source chunk state | Re-ingest source or narrow source filters |
 | Podcast never reaches completed | TTS/audio pipeline failure | Podcast job `failure_code` and `failure_detail` | Validate source text availability and retry via `/podcasts/{id}/retry` |

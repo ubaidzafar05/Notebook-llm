@@ -19,9 +19,8 @@ def test_readiness_returns_503_when_zep_is_down(
             "redis": DependencyStatus(state="up", detail="ok", latency_ms=1),
             "milvus": DependencyStatus(state="degraded", detail="fallback", latency_ms=None),
             "ollama": DependencyStatus(state="up", detail="ok", latency_ms=1),
-            "openrouter": DependencyStatus(state="up", detail="ok", latency_ms=1),
             "zep": DependencyStatus(state="down", detail="Zep auth failed", latency_ms=1),
-            "provider_gate": DependencyStatus(state="up", detail="Providers available: ollama, openrouter", latency_ms=None),
+            "provider_gate": DependencyStatus(state="up", detail="Provider available: ollama", latency_ms=None),
         }
 
     monkeypatch.setattr(health_routes, "collect_dependency_health", _collect)

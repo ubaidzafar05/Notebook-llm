@@ -47,7 +47,7 @@ def _render_dependency_panel() -> None:
     except ApiError as exc:
         st.sidebar.error(f"Dependency check failed: {exc}")
         return
-    for name in ("postgres", "redis", "milvus", "zep", "ollama", "openrouter", "provider_gate"):
+    for name in ("postgres", "redis", "milvus", "zep", "ollama", "provider_gate"):
         row = dependencies.get(name)
         if not isinstance(row, dict):
             continue
