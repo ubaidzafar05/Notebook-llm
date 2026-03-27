@@ -422,7 +422,7 @@ function NotebookCard({
               </p>
               <h3 className="mt-2 text-xl font-semibold text-[color:var(--text-primary)]">{notebook.title}</h3>
             </div>
-            <div className="flex gap-2 opacity-0 transition group-hover:opacity-100">
+            <div className="flex gap-2 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
               <Button aria-label={`Pin ${notebook.title}`} size="sm" variant="ghost" onClick={onTogglePin}>
                 {notebook.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
               </Button>

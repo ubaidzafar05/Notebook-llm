@@ -124,9 +124,9 @@ type WorkspaceState = {
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   documentsState: {
     documents: [],
-    selectedDocumentIds: ["src-1", "src-2"],
+    selectedDocumentIds: [],
     hoveredDocumentId: null,
-    activeDocumentId: "src-1",
+    activeDocumentId: null,
     ingestionStateById: {},
     sourceFilters: {
       types: [],

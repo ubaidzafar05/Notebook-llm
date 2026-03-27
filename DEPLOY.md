@@ -19,10 +19,17 @@ cd Notebook-llm
 cp .env.example .env
 # Edit .env — at minimum set:
 #   JWT_SECRET       (generate with: openssl rand -hex 32)
+#   OLLAMA_BASE_URL                           (defaults to host.docker.internal:11434 in compose)
+#   OLLAMA_CHAT_MODEL                         (defaults to qwen3:8b)
 #   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET   (for OAuth)
 #   ZEP_API_KEY / ZEP_PROJECT_ID              (optional — local fallback available)
 #   ASSEMBLYAI_API_KEY                        (for audio transcription)
 #   FIRECRAWL_API_KEY                         (for web scraping)
+
+# 2a. Make sure Ollama is running on the Docker host
+ollama serve
+ollama pull qwen3:8b
+ollama list
 
 # 3. Start all services
 cd infra
@@ -30,6 +37,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 # 4. Verify health
 curl http://localhost:8000/api/v1/health
+curl http://localhost:8000/api/v1/health/readiness
 curl http://localhost:3000/
 ```
 
@@ -49,9 +57,8 @@ See `.env.example` for the full list. Key groups:
 | Variable | Description |
 |----------|-------------|
 | `JWT_SECRET` | Secret for signing JWT tokens |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `REDIS_URL` | Redis connection string |
-| `MILVUS_URI` | Milvus vector DB endpoint |
+| `OLLAMA_BASE_URL` | Ollama endpoint reachable from the backend/worker runtime |
+| `OLLAMA_CHAT_MODEL` | Local chat model tag (`qwen3:8b` recommended) |
 
 ### Optional (graceful fallback)
 | Variable | Description |
@@ -61,6 +68,8 @@ See `.env.example` for the full list. Key groups:
 | `ASSEMBLYAI_API_KEY` | Audio transcription — feature disabled if missing |
 | `FIRECRAWL_API_KEY` | Web scraping — feature disabled if missing |
 | `ENABLE_CROSS_ENCODER_RERANK` | Enable cross-encoder reranking (`false` by default) |
+| `KOKORO_PREWARM_ON_STARTUP` | Preload podcast TTS runtime and voices on worker startup (`true` by default) |
+| `PODCAST_TTS_TIMEOUT_SECONDS` | CPU budget for podcast TTS stage (`600` by default) |
 
 ## Database Migrations
 
@@ -95,8 +104,34 @@ docker compose -f docker-compose.prod.yml up -d --scale rq-worker=4
 
 - **Health check**: `GET /api/v1/health` — returns dependency status
 - **Readiness probe**: `GET /api/v1/health/readiness` — returns 503 if not ready
+- **Podcast TTS readiness**: surfaced as the `kokoro` dependency inside health/readiness
 - **Metrics**: `GET /metrics` — Prometheus-compatible counters and histograms
 - **Logs**: JSON-formatted to stdout — compatible with any log aggregator
+
+## Production Smoke Checklist
+
+Run this after every fresh deployment:
+
+```bash
+curl http://localhost:8000/api/v1/health/readiness
+docker ps --format 'table {{.Names}}\t{{.Status}}' | grep notebooklm
+```
+
+Then verify the product path in the browser:
+- register/login
+- create notebook
+- upload a small text source
+- wait for ingestion to complete
+- send one grounded chat query
+- export markdown and pdf
+- create a podcast and wait for audio download
+
+## Operational Notes
+
+- First podcast generation on a cold worker is CPU-heavy even with prewarm enabled.
+- On the current local CPU stack, podcast generation is measured in minutes, not seconds.
+- This is a throughput constraint, not a correctness issue.
+- If the worker restarts mid-job, stale `processing` podcast rows are automatically marked failed with `PODCAST_WORKER_INTERRUPTED`.
 
 ## TLS / HTTPS
 
