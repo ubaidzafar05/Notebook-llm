@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
 from app.core.exceptions import AppError
 from app.ingestion.parsers.audio_parser import AudioParser
 from app.ingestion.source_registry import ParsedSegment
+
+_YOUTUBE_URL_RE = re.compile(
+    r"^https?://(www\.)?(youtube\.com/(watch|shorts|embed|live)|youtu\.be/|music\.youtube\.com/)"
+)
 
 
 def _extract_subtitle_text(subtitle_path: Path) -> str:
@@ -26,6 +31,13 @@ class YouTubeParser:
         self.audio_parser = AudioParser()
 
     def parse(self, url: str, work_dir: Path) -> list[ParsedSegment]:
+        if not _YOUTUBE_URL_RE.match(url):
+            raise AppError(
+                code="YOUTUBE_INVALID_URL",
+                message="URL must be a valid YouTube link (youtube.com or youtu.be)",
+                status_code=400,
+                details={"url": url[:200]},
+            )
         metadata_cmd = ["yt-dlp", "--dump-single-json", url]
         metadata_result = subprocess.run(metadata_cmd, capture_output=True, text=True, check=False)
         if metadata_result.returncode != 0:

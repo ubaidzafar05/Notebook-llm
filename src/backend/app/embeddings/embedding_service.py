@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 import requests
 
@@ -8,6 +9,9 @@ from app.core.config import get_settings
 from app.embeddings.local_embedding_client import embed_text_locally
 
 logger = logging.getLogger(__name__)
+
+_EMBED_RETRY_ATTEMPTS = 2
+_EMBED_RETRY_BACKOFF_SECONDS = 2.0
 
 
 class EmbeddingService:
@@ -18,11 +22,24 @@ class EmbeddingService:
         if not texts:
             return []
 
-        try:
-            return [self._embed_with_ollama(text=text) for text in texts]
-        except requests.RequestException:
-            logger.warning("Embedding provider failed; using local hashing embeddings")
-            return [embed_text_locally(text) for text in texts]
+        last_error: Exception | None = None
+        for attempt in range(_EMBED_RETRY_ATTEMPTS):
+            try:
+                return [self._embed_with_ollama(text=text) for text in texts]
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt < _EMBED_RETRY_ATTEMPTS - 1:
+                    logger.warning(
+                        "Embedding attempt %d/%d failed, retrying in %.1fs: %s",
+                        attempt + 1,
+                        _EMBED_RETRY_ATTEMPTS,
+                        _EMBED_RETRY_BACKOFF_SECONDS,
+                        exc,
+                    )
+                    time.sleep(_EMBED_RETRY_BACKOFF_SECONDS)
+
+        logger.warning("All %d embedding attempts failed; using local hashing fallback: %s", _EMBED_RETRY_ATTEMPTS, last_error)
+        return [embed_text_locally(text) for text in texts]
 
     def _embed_with_ollama(self, text: str) -> list[float]:
         payload = {"model": self.settings.ollama_embed_model, "prompt": text}

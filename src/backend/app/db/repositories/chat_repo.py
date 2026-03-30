@@ -20,15 +20,23 @@ class ChatRepository:
         self.db.refresh(session)
         return session
 
-    def list_sessions(self, user_id: str) -> list[ChatSession]:
-        stmt = select(ChatSession).where(ChatSession.user_id == user_id).order_by(ChatSession.updated_at.desc())
+    def list_sessions(self, user_id: str, *, limit: int = 50, offset: int = 0) -> list[ChatSession]:
+        stmt = (
+            select(ChatSession)
+            .where(ChatSession.user_id == user_id)
+            .order_by(ChatSession.updated_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         return list(self.db.scalars(stmt).all())
 
-    def list_sessions_for_notebook(self, user_id: str, notebook_id: str) -> list[ChatSession]:
+    def list_sessions_for_notebook(self, user_id: str, notebook_id: str, *, limit: int = 50, offset: int = 0) -> list[ChatSession]:
         stmt = (
             select(ChatSession)
             .where(ChatSession.user_id == user_id, ChatSession.notebook_id == notebook_id)
             .order_by(ChatSession.updated_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
         return list(self.db.scalars(stmt).all())
 
@@ -80,12 +88,14 @@ class ChatRepository:
         self.db.add(session)
         self.db.commit()
 
-    def list_messages(self, user_id: str, session_id: str) -> list[ChatMessage]:
+    def list_messages(self, user_id: str, session_id: str, *, limit: int = 100, offset: int = 0) -> list[ChatMessage]:
         stmt = (
             select(ChatMessage)
             .join(ChatSession, ChatMessage.session_id == ChatSession.id)
             .where(ChatSession.user_id == user_id, ChatSession.id == session_id)
             .order_by(ChatMessage.created_at.asc())
+            .limit(limit)
+            .offset(offset)
         )
         return list(self.db.scalars(stmt).all())
 

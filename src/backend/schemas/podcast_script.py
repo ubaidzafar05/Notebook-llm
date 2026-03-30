@@ -17,7 +17,7 @@ class PodcastTurn(BaseModel):
 
 
 class PodcastScript(BaseModel):
-    turns: list[PodcastTurn] = Field(min_length=12, max_length=20)
+    turns: list[PodcastTurn] = Field(min_length=4, max_length=40)
 
     @field_validator("turns")
     @classmethod

@@ -48,7 +48,7 @@ def collect_dependency_health(
 
 
 def overall_system_state(statuses: dict[str, DependencyStatus]) -> Literal["ok", "degraded"]:
-    required = ("postgres", "redis", "milvus", "provider_gate", "kokoro")
+    required = ("postgres", "redis", "milvus", "provider_gate")
     for name in required:
         status = statuses.get(name)
         if status is None or status.state != "up":
