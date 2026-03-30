@@ -41,7 +41,9 @@ class Settings(BaseSettings):
 
     milvus_uri: str = Field(default="http://localhost:19530", alias="MILVUS_URI")
     milvus_collection: str = Field(default="notebooklm_chunks", alias="MILVUS_COLLECTION")
+    embedding_dimension: int = Field(default=768, alias="EMBEDDING_DIMENSION")
 
+    cors_origins: str = Field(default="", alias="CORS_ORIGINS")
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
     ollama_chat_model: str = Field(default="qwen3:8b", alias="OLLAMA_CHAT_MODEL")
     ollama_embed_model: str = Field(default="nomic-embed-text", alias="OLLAMA_EMBED_MODEL")
@@ -108,6 +110,23 @@ def validate_required_runtime_settings(settings: Settings) -> None:
     import logging
 
     _logger = logging.getLogger(__name__)
+
+    # S2: Reject insecure JWT secret in production
+    if settings.environment == "production" and settings.jwt_secret in ("change-me", ""):
+        raise RuntimeError(
+            "JWT_SECRET must be set to a strong random value in production. "
+            "Cannot start with the default 'change-me' secret."
+        )
+
+    # S3: Reject localhost/wildcard CORS origins in production
+    if settings.environment == "production":
+        origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()] if settings.cors_origins else [settings.ui_url]
+        for origin in origins:
+            if "localhost" in origin or origin == "*":
+                raise RuntimeError(
+                    f"CORS origin '{origin}' is not allowed in production. "
+                    "Set CORS_ORIGINS to your production domain(s)."
+                )
 
     if not settings.enable_zep_memory:
         _logger.info("Zep memory disabled — using local DB summaries only.")

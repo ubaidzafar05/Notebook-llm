@@ -76,9 +76,7 @@ app = FastAPI(title="NotebookLM API", lifespan=lifespan)
 
 settings = get_settings()
 if settings.environment != "test":
-    allow_origins = getattr(settings, "cors_origins", None)
-    if not allow_origins:
-        allow_origins = [settings.ui_url]
+    allow_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()] if settings.cors_origins else [settings.ui_url]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allow_origins,

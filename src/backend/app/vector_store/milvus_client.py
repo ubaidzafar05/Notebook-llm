@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from math import sqrt
 from typing import Any
 
@@ -8,6 +9,22 @@ from app.core.config import get_settings
 from app.vector_store.collections import VectorRecord
 
 logger = logging.getLogger(__name__)
+
+_SAFE_MILVUS_VALUE_RE = re.compile(r"^[a-zA-Z0-9_\-]+$")
+
+
+def _safe_milvus_value(value: str, field_name: str) -> str:
+    """Validate that a value is safe to interpolate into a Milvus filter expression.
+
+    Rejects any value containing quotes, backslashes, or other special characters
+    that could break out of a Milvus expression string — preventing expression injection.
+    """
+    if not _SAFE_MILVUS_VALUE_RE.match(value):
+        raise ValueError(
+            f"Unsafe value for Milvus filter field '{field_name}': "
+            f"must be alphanumeric, hyphens, or underscores only"
+        )
+    return value
 
 
 class VectorStoreClient:
@@ -39,7 +56,7 @@ class VectorStoreClient:
                     FieldSchema(name="user_id", dtype=DataType.VARCHAR, max_length=64),
                     FieldSchema(name="notebook_id", dtype=DataType.VARCHAR, max_length=64),
                     FieldSchema(name="source_id", dtype=DataType.VARCHAR, max_length=64),
-                    FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=384),
+                    FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=self.settings.embedding_dimension),
                     FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=65535),
                 ]
                 schema = CollectionSchema(fields=fields, description="NotebookLM chunks")
@@ -71,7 +88,7 @@ class VectorStoreClient:
         user_ids = [record.user_id for record in records]
         notebook_ids = [record.notebook_id for record in records]
         source_ids = [record.source_id for record in records]
-        vectors = [self._normalize_dimension(record.vector) for record in records]
+        vectors = [self._normalize_dimension(record.vector, self.settings.embedding_dimension) for record in records]
         texts = [record.text[:65000] for record in records]
         self._milvus_collection.insert([chunk_ids, user_ids, notebook_ids, source_ids, vectors, texts])
         self._milvus_collection.flush()
@@ -83,12 +100,14 @@ class VectorStoreClient:
 
     def _search_milvus(self, user_id: str, notebook_id: str, query_vector: list[float], top_k: int) -> list[VectorRecord]:
         assert self._milvus_collection is not None
+        safe_uid = _safe_milvus_value(user_id, "user_id")
+        safe_nid = _safe_milvus_value(notebook_id, "notebook_id")
         search_res = self._milvus_collection.search(
-            data=[self._normalize_dimension(query_vector)],
+            data=[self._normalize_dimension(query_vector, self.settings.embedding_dimension)],
             anns_field="embedding",
             param={"metric_type": "COSINE", "params": {}},
             limit=top_k,
-            expr=f'user_id == "{user_id}" and notebook_id == "{notebook_id}"',
+            expr=f'user_id == "{safe_uid}" and notebook_id == "{safe_nid}"',
             output_fields=["chunk_id", "user_id", "notebook_id", "source_id", "text"],
         )
         results: list[VectorRecord] = []
@@ -121,7 +140,9 @@ class VectorStoreClient:
 
     def delete_source(self, user_id: str, source_id: str) -> None:
         if self._milvus_enabled and self._milvus_collection is not None:
-            expr = f'user_id == "{user_id}" and source_id == "{source_id}"'
+            safe_uid = _safe_milvus_value(user_id, "user_id")
+            safe_sid = _safe_milvus_value(source_id, "source_id")
+            expr = f'user_id == "{safe_uid}" and source_id == "{safe_sid}"'
             self._milvus_collection.delete(expr)
             self._milvus_collection.flush()
             return
@@ -137,7 +158,7 @@ class VectorStoreClient:
         return self._milvus_reason, self._milvus_detail
 
     @staticmethod
-    def _normalize_dimension(vector: list[float], target_dim: int = 384) -> list[float]:
+    def _normalize_dimension(vector: list[float], target_dim: int = 768) -> list[float]:
         if len(vector) == target_dim:
             return vector
         if len(vector) > target_dim:

@@ -9,7 +9,7 @@ def _token_to_index(token: str, dimension: int) -> int:
     return int(digest[:8], 16) % dimension
 
 
-def embed_text_locally(text: str, dimension: int = 384) -> list[float]:
+def embed_text_locally(text: str, dimension: int = 768) -> list[float]:
     vector = [0.0] * dimension
     tokens = [token for token in text.lower().split() if token]
     for token in tokens:
