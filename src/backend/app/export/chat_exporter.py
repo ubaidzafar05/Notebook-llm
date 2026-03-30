@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Any
 
@@ -104,7 +104,7 @@ def _render_header(*, session: ChatSession, notebook: Notebook) -> list[str]:
         f"# {notebook.title} — Research Report",
         "",
         f"Session: {session.title}",
-        f"Exported: {datetime.utcnow().isoformat()}Z",
+        f"Exported: {datetime.now(UTC).isoformat()}",
         "",
     ]
 

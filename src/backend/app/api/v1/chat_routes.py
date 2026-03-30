@@ -102,7 +102,14 @@ def send_message(
     chat_repo.add_message(session=session, role="user", content=payload.message, citations=[], model_info={})
 
     vector_store = _vector_store_from_request(request)
-    notebook_id = session.notebook_id or _resolved_notebook_id(db, user.id, None)
+    notebook_id = session.notebook_id
+    if not notebook_id:
+        return error_response(
+            code="INVALID_SESSION",
+            message="Session has no associated notebook",
+            request_id=request_id,
+            status_code=400,
+        )
     chunk_repo = ChunkRepository(db)
     retriever = HybridRetriever(
         embedding_service=EmbeddingService(),
@@ -302,7 +309,7 @@ def list_notebook_messages(
     return success_response(data=data, request_id=request_id)
 
 
-@router.get("/notebooks/{notebook_id}/chat/search")
+@router.get("/notebooks/{notebook_id}/chat/search", dependencies=[rate_limit_dependency(times=20, seconds=60)])
 def search_notebook_messages(
     notebook_id: str,
     request: Request,

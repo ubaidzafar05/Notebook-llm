@@ -93,7 +93,7 @@ class ResponseGenerator:
         answer_text, model_info = self.router.generate(
             system_prompt=self.answer_prompt,
             user_prompt=user_prompt,
-            max_output_tokens=240,
+            max_output_tokens=800,
         )
         answer_text, model_info = _normalize_generated_answer(
             answer_text=answer_text,
@@ -216,8 +216,8 @@ def _support_score(
         excerpt_terms = _meaningful_terms(excerpt_by_chunk.get(context.chunk_id, ""))
         excerpt_overlap = len(query_terms.intersection(excerpt_terms)) / max(len(query_terms), 1)
         if context.chunk_id in cited_chunk_ids:
-            overlap = overlap * 1.15
-            excerpt_overlap = excerpt_overlap * 1.15
+            overlap = min(overlap * 1.15, 1.0)
+            excerpt_overlap = min(excerpt_overlap * 1.15, 1.0)
         if overlap > best_overlap:
             best_overlap = overlap
         if excerpt_overlap > best_excerpt_overlap:

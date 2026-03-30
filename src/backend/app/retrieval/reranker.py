@@ -26,8 +26,7 @@ def _lexical_rerank(query: str, candidates: list[VectorRecord], final_k: int) ->
     for candidate in candidates:
         terms = set(candidate.text.lower().split())
         overlap = len(query_terms.intersection(terms))
-        length_penalty = max(len(terms), 1)
-        score = overlap / length_penalty
+        score = overlap / max(len(query_terms), 1)
         scored.append((score, candidate))
 
     scored.sort(key=lambda row: row[0], reverse=True)
