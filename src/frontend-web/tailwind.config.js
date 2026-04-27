@@ -25,25 +25,32 @@ export default {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         destructive: "hsl(var(--destructive))",
-        "destructive-foreground": "hsl(var(--destructive-foreground))"
+        "destructive-foreground": "hsl(var(--destructive-foreground))",
       },
       borderRadius: {
         xl: "1rem",
         "2xl": "1.5rem",
-        "3xl": "2rem"
+        "3xl": "2rem",
       },
       boxShadow: {
         panel: "var(--shadow-2)",
         glow: "var(--shadow-soft)",
         inset: "inset 0 1px 0 rgba(255,255,255,0.44)",
         "soft-card": "var(--shadow-1)",
-        "strong-card": "var(--shadow-strong)"
+        "strong-card": "var(--shadow-strong)",
       },
       fontFamily: {
-        sans: ['"Manrope"', "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
-        mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"]
-      }
-    }
+        sans: [
+          '"Manrope"',
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "system-ui",
+          "sans-serif",
+        ],
+        mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"],
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };

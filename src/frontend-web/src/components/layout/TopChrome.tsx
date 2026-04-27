@@ -1,4 +1,15 @@
-import { BookOpenText, ChevronDown, Home, LogOut, MessageSquarePlus, MoonStar, PanelRight, Plus, Search, Sparkles } from "lucide-react";
+import {
+  BookOpenText,
+  ChevronDown,
+  Home,
+  LogOut,
+  MessageSquarePlus,
+  MoonStar,
+  PanelRight,
+  Plus,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { springs } from "@/animations/motion";
 import { Button } from "@/components/ui/button";
@@ -54,7 +65,9 @@ export function TopChrome({
   onToggleStudio,
 }: TopChromeProps): JSX.Element {
   const canRenderNotebookSelect = Boolean(
-    onNotebookSelect && activeNotebookId && notebookOptions.some((option) => option.id === activeNotebookId)
+    onNotebookSelect &&
+    activeNotebookId &&
+    notebookOptions.some((option) => option.id === activeNotebookId),
   );
 
   return (
@@ -136,13 +149,23 @@ export function TopChrome({
             </Button>
           ) : null}
           {onCreateNotebook ? (
-            <Button className="hidden xl:inline-flex" size="sm" variant="outline" onClick={onCreateNotebook}>
+            <Button
+              className="hidden xl:inline-flex"
+              size="sm"
+              variant="outline"
+              onClick={onCreateNotebook}
+            >
               <Plus className="h-3.5 w-3.5" />
               Notebook
             </Button>
           ) : null}
           {onNewChat ? (
-            <Button className="hidden xl:inline-flex" size="sm" variant="outline" onClick={onNewChat}>
+            <Button
+              className="hidden xl:inline-flex"
+              size="sm"
+              variant="outline"
+              onClick={onNewChat}
+            >
               <MessageSquarePlus className="h-3.5 w-3.5" />
               Chat
             </Button>
@@ -153,7 +176,7 @@ export function TopChrome({
               aria-pressed={studioOpen}
               className={cn(
                 studioOpen &&
-                "border-[color:var(--theme-pill-active-border)] bg-[color:var(--theme-pill-active-bg)] text-[color:var(--theme-pill-active-text)]"
+                  "border-[color:var(--theme-pill-active-border)] bg-[color:var(--theme-pill-active-bg)] text-[color:var(--theme-pill-active-text)]",
               )}
               size="sm"
               variant="outline"
@@ -174,7 +197,7 @@ export function TopChrome({
                   "rounded-full border px-2.5 py-1 text-[11px] font-medium transition",
                   themeMode === option.value
                     ? "border-[color:var(--theme-pill-active-border)] bg-[color:var(--theme-pill-active-bg)] text-[color:var(--theme-pill-active-text)]"
-                    : "border-[color:var(--panel-border)] bg-[color:var(--surface-2)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
+                    : "border-[color:var(--panel-border)] bg-[color:var(--surface-2)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]",
                 )}
                 onClick={() => onThemeChange(option.value)}
                 type="button"
@@ -191,13 +214,17 @@ export function TopChrome({
             variant="outline"
             onClick={() =>
               onThemeChange(
-                themeOptions[(themeOptions.findIndex((item) => item.value === themeMode) + 1) % themeOptions.length]!
-                  .value
+                themeOptions[
+                  (themeOptions.findIndex((item) => item.value === themeMode) +
+                    1) %
+                    themeOptions.length
+                ]!.value,
               )
             }
           >
             <MoonStar className="h-3.5 w-3.5" />
-            {themeOptions.find((option) => option.value === themeMode)?.label ?? "Theme"}
+            {themeOptions.find((option) => option.value === themeMode)?.label ??
+              "Theme"}
           </Button>
 
           {onLogout ? (

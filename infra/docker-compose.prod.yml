@@ -114,13 +114,7 @@ services:
       milvus-standalone:
         condition: service_healthy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-f",
-          "http://localhost:8000/api/v1/health",
-        ]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -142,8 +136,7 @@ services:
       dockerfile: Dockerfile.backend
     restart: unless-stopped
     working_dir: /app/src/backend
-    command:
-      ["python", "-m", "app.jobs.worker_bootstrap"]
+    command: ["python", "-m", "app.jobs.worker_bootstrap"]
     env_file: ../.env
     environment:
       DATABASE_URL: postgresql+psycopg://notebooklm:${POSTGRES_PASSWORD:-notebooklm}@postgres:5432/notebooklm
@@ -163,7 +156,11 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-core'"]
+      test:
+        [
+          "CMD-SHELL",
+          "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-core'",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -174,8 +171,7 @@ services:
       dockerfile: Dockerfile.backend
     restart: unless-stopped
     working_dir: /app/src/backend
-    command:
-      ["python", "-m", "app.jobs.worker_bootstrap"]
+    command: ["python", "-m", "app.jobs.worker_bootstrap"]
     env_file: ../.env
     environment:
       DATABASE_URL: postgresql+psycopg://notebooklm:${POSTGRES_PASSWORD:-notebooklm}@postgres:5432/notebooklm
@@ -195,7 +191,11 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-podcast'"]
+      test:
+        [
+          "CMD-SHELL",
+          "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-podcast'",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -206,8 +206,7 @@ services:
       dockerfile: Dockerfile.backend
     restart: unless-stopped
     working_dir: /app/src/backend
-    command:
-      ["python", "-m", "app.jobs.worker_bootstrap"]
+    command: ["python", "-m", "app.jobs.worker_bootstrap"]
     env_file: ../.env
     environment:
       DATABASE_URL: postgresql+psycopg://notebooklm:${POSTGRES_PASSWORD:-notebooklm}@postgres:5432/notebooklm
@@ -227,7 +226,11 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-podcast'"]
+      test:
+        [
+          "CMD-SHELL",
+          "tr '\\000' ' ' </proc/1/cmdline | grep -q 'rq worker notebooklm-podcast'",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

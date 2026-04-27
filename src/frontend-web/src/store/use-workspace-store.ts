@@ -7,7 +7,7 @@ import type {
   ModelOption,
   PodcastGenerationPhase,
   SourceDocument,
-  VoiceOption
+  VoiceOption,
 } from "@/lib/api";
 
 type ChatSettings = {
@@ -87,10 +87,17 @@ type WorkspaceState = {
   studioState: StudioState;
   uiShellState: UiShellState;
   answerBoardState: AnswerBoardState;
-  setKnowledgeGraph: (documents: SourceDocument[], nodes: KnowledgeNode[], edges: KnowledgeEdge[]) => void;
+  setKnowledgeGraph: (
+    documents: SourceDocument[],
+    nodes: KnowledgeNode[],
+    edges: KnowledgeEdge[],
+  ) => void;
   setMessages: (messages: ChatMessageRecord[]) => void;
   addMessage: (message: ChatMessageRecord) => void;
-  updateMessage: (messageId: string, updater: (message: ChatMessageRecord) => ChatMessageRecord) => void;
+  updateMessage: (
+    messageId: string,
+    updater: (message: ChatMessageRecord) => ChatMessageRecord,
+  ) => void;
   setDraftPrompt: (draftPrompt: string) => void;
   toggleDocumentSelection: (sourceId: string) => void;
   clearSelectedDocuments: () => void;
@@ -99,7 +106,10 @@ type WorkspaceState = {
   setAttachedDocuments: (sourceIds: string[]) => void;
   setFocusedCitation: (sourceId: string | null) => void;
   setStreamingAnswerId: (messageId: string | null) => void;
-  setNodePosition: (nodeId: string, position: KnowledgeNode["position"]) => void;
+  setNodePosition: (
+    nodeId: string,
+    position: KnowledgeNode["position"],
+  ) => void;
   setHoveredNode: (nodeId: string | null) => void;
   setReducedMotion: (enabled: boolean) => void;
   setWebglReady: (ready: boolean) => void;
@@ -111,8 +121,15 @@ type WorkspaceState = {
   updateChatSettings: (patch: Partial<ChatSettings>) => void;
   setSelectedVoice: (voice: VoiceOption) => void;
   setPodcastState: (phase: PodcastGenerationPhase) => void;
-  setPodcastOutput: (payload: { script: string; audioUrl: string; waveform: number[] }) => void;
-  setAnswerSectionExpanded: (section: keyof AnswerBoardState["expandedSections"], expanded: boolean) => void;
+  setPodcastOutput: (payload: {
+    script: string;
+    audioUrl: string;
+    waveform: number[];
+  }) => void;
+  setAnswerSectionExpanded: (
+    section: keyof AnswerBoardState["expandedSections"],
+    expanded: boolean,
+  ) => void;
   setAnswerBoardHighlightedSource: (sourceId: string | null) => void;
   setAnswerViewMode: (mode: AnswerBoardState["viewMode"]) => void;
   setGalleryCollapsed: (collapsed: boolean) => void;
@@ -132,8 +149,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       types: [],
       statuses: [],
       from: null,
-      to: null
-    }
+      to: null,
+    },
   },
   sceneState: {
     nodes: [],
@@ -143,42 +160,42 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     activeAnswerId: null,
     hoveredNodeId: null,
     reducedMotion: false,
-    webglReady: true
+    webglReady: true,
   },
   chatState: {
     messages: [],
     draftPrompt: "",
     streamingAnswerId: null,
-    attachedDocumentIds: []
+    attachedDocumentIds: [],
   },
   studioState: {
     chatSettings: {
       topK: 6,
       similarityThreshold: 0.72,
       model: "ollama/qwen3:8b",
-      memoryEnabled: true
+      memoryEnabled: true,
     },
     podcastGenerationState: "idle",
     selectedVoice: "Alloy Host",
     podcastScript: "",
     podcastAudioUrl: null,
     waveform: [],
-    themeMode: "everforest-light"
+    themeMode: "everforest-light",
   },
   uiShellState: {
     studioOpen: false,
     activeStudioTab: "chat",
     galleryCollapsed: false,
-    historySearchOpen: false
+    historySearchOpen: false,
   },
   answerBoardState: {
     expandedSections: {
       response: true,
       citations: true,
-      notes: true
+      notes: true,
     },
     highlightedSourceId: null,
-    viewMode: "board"
+    viewMode: "board",
   },
   setKnowledgeGraph: (documents, nodes, edges) =>
     set((state) => {
@@ -194,71 +211,128 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
         documentsState: {
           ...state.documentsState,
           documents,
-          ingestionStateById: Object.fromEntries(documents.map((document) => [document.id, document.status])),
-          activeDocumentId: state.documentsState.activeDocumentId && documents.some((document) => document.id === state.documentsState.activeDocumentId)
-            ? state.documentsState.activeDocumentId
-            : documents[0]?.id ?? null,
-          selectedDocumentIds: state.documentsState.selectedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
+          ingestionStateById: Object.fromEntries(
+            documents.map((document) => [document.id, document.status]),
+          ),
+          activeDocumentId:
+            state.documentsState.activeDocumentId &&
+            documents.some(
+              (document) =>
+                document.id === state.documentsState.activeDocumentId,
+            )
+              ? state.documentsState.activeDocumentId
+              : (documents[0]?.id ?? null),
+          selectedDocumentIds: state.documentsState.selectedDocumentIds.filter(
+            (sourceId) =>
+              documents.some((document) => document.id === sourceId),
+          ),
         },
         sceneState: {
           ...state.sceneState,
           nodes,
-          edges
+          edges,
         },
         chatState: {
           ...state.chatState,
-          attachedDocumentIds: state.chatState.attachedDocumentIds.filter((sourceId) => documents.some((document) => document.id === sourceId))
-        }
+          attachedDocumentIds: state.chatState.attachedDocumentIds.filter(
+            (sourceId) =>
+              documents.some((document) => document.id === sourceId),
+          ),
+        },
       };
     }),
-  setMessages: (messages) => set((state) => ({ chatState: { ...state.chatState, messages } })),
+  setMessages: (messages) =>
+    set((state) => ({ chatState: { ...state.chatState, messages } })),
   addMessage: (message) =>
     set((state) => ({
-      chatState: { ...state.chatState, messages: [...state.chatState.messages, message] },
+      chatState: {
+        ...state.chatState,
+        messages: [...state.chatState.messages, message],
+      },
       sceneState: {
         ...state.sceneState,
-        activeAnswerId: message.role === "assistant" ? message.id : state.sceneState.activeAnswerId
-      }
+        activeAnswerId:
+          message.role === "assistant"
+            ? message.id
+            : state.sceneState.activeAnswerId,
+      },
     })),
   updateMessage: (messageId, updater) =>
     set((state) => ({
       chatState: {
         ...state.chatState,
-        messages: state.chatState.messages.map((message) => (message.id === messageId ? updater(message) : message))
-      }
+        messages: state.chatState.messages.map((message) =>
+          message.id === messageId ? updater(message) : message,
+        ),
+      },
     })),
-  setDraftPrompt: (draftPrompt) => set((state) => ({ chatState: { ...state.chatState, draftPrompt } })),
+  setDraftPrompt: (draftPrompt) =>
+    set((state) => ({ chatState: { ...state.chatState, draftPrompt } })),
   toggleDocumentSelection: (sourceId) =>
     set((state) => {
-      const selected = state.documentsState.selectedDocumentIds.includes(sourceId)
-        ? state.documentsState.selectedDocumentIds.filter((id) => id !== sourceId)
+      const selected = state.documentsState.selectedDocumentIds.includes(
+        sourceId,
+      )
+        ? state.documentsState.selectedDocumentIds.filter(
+            (id) => id !== sourceId,
+          )
         : [...state.documentsState.selectedDocumentIds, sourceId];
       return {
-        documentsState: { ...state.documentsState, selectedDocumentIds: selected },
-        chatState: { ...state.chatState, attachedDocumentIds: selected }
+        documentsState: {
+          ...state.documentsState,
+          selectedDocumentIds: selected,
+        },
+        chatState: { ...state.chatState, attachedDocumentIds: selected },
       };
     }),
   clearSelectedDocuments: () =>
     set((state) => ({
       documentsState: { ...state.documentsState, selectedDocumentIds: [] },
-      chatState: { ...state.chatState, attachedDocumentIds: [] }
+      chatState: { ...state.chatState, attachedDocumentIds: [] },
     })),
-  setHoveredDocument: (sourceId) => set((state) => ({ documentsState: { ...state.documentsState, hoveredDocumentId: sourceId } })),
-  setActiveDocument: (sourceId) => set((state) => ({ documentsState: { ...state.documentsState, activeDocumentId: sourceId } })),
-  setAttachedDocuments: (sourceIds) => set((state) => ({ chatState: { ...state.chatState, attachedDocumentIds: sourceIds } })),
-  setFocusedCitation: (sourceId) => set((state) => ({ sceneState: { ...state.sceneState, focusedCitationId: sourceId } })),
-  setStreamingAnswerId: (messageId) => set((state) => ({ chatState: { ...state.chatState, streamingAnswerId: messageId } })),
+  setHoveredDocument: (sourceId) =>
+    set((state) => ({
+      documentsState: { ...state.documentsState, hoveredDocumentId: sourceId },
+    })),
+  setActiveDocument: (sourceId) =>
+    set((state) => ({
+      documentsState: { ...state.documentsState, activeDocumentId: sourceId },
+    })),
+  setAttachedDocuments: (sourceIds) =>
+    set((state) => ({
+      chatState: { ...state.chatState, attachedDocumentIds: sourceIds },
+    })),
+  setFocusedCitation: (sourceId) =>
+    set((state) => ({
+      sceneState: { ...state.sceneState, focusedCitationId: sourceId },
+    })),
+  setStreamingAnswerId: (messageId) =>
+    set((state) => ({
+      chatState: { ...state.chatState, streamingAnswerId: messageId },
+    })),
   setNodePosition: (nodeId, position) =>
     set((state) => ({
       sceneState: {
         ...state.sceneState,
-        nodes: state.sceneState.nodes.map((node) => (node.id === nodeId ? { ...node, position } : node))
-      }
+        nodes: state.sceneState.nodes.map((node) =>
+          node.id === nodeId ? { ...node, position } : node,
+        ),
+      },
     })),
-  setHoveredNode: (nodeId) => set((state) => ({ sceneState: { ...state.sceneState, hoveredNodeId: nodeId } })),
-  setReducedMotion: (enabled) => set((state) => ({ sceneState: { ...state.sceneState, reducedMotion: enabled } })),
-  setWebglReady: (ready) => set((state) => ({ sceneState: { ...state.sceneState, webglReady: ready } })),
-  setThemeMode: (themeMode) => set((state) => ({ studioState: { ...state.studioState, themeMode } })),
+  setHoveredNode: (nodeId) =>
+    set((state) => ({
+      sceneState: { ...state.sceneState, hoveredNodeId: nodeId },
+    })),
+  setReducedMotion: (enabled) =>
+    set((state) => ({
+      sceneState: { ...state.sceneState, reducedMotion: enabled },
+    })),
+  setWebglReady: (ready) =>
+    set((state) => ({
+      sceneState: { ...state.sceneState, webglReady: ready },
+    })),
+  setThemeMode: (themeMode) =>
+    set((state) => ({ studioState: { ...state.studioState, themeMode } })),
   cycleThemeMode: () =>
     set((state) => {
       const order: ThemeMode[] = ["everforest-light", "everforest-dark"];
@@ -267,22 +341,40 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       return {
         studioState: {
           ...state.studioState,
-          themeMode
-        }
+          themeMode,
+        },
       };
     }),
-  setStudioOpen: (open) => set((state) => ({ uiShellState: { ...state.uiShellState, studioOpen: open } })),
-  toggleStudioOpen: () => set((state) => ({ uiShellState: { ...state.uiShellState, studioOpen: !state.uiShellState.studioOpen } })),
-  setActiveStudioTab: (tab) => set((state) => ({ uiShellState: { ...state.uiShellState, activeStudioTab: tab } })),
+  setStudioOpen: (open) =>
+    set((state) => ({
+      uiShellState: { ...state.uiShellState, studioOpen: open },
+    })),
+  toggleStudioOpen: () =>
+    set((state) => ({
+      uiShellState: {
+        ...state.uiShellState,
+        studioOpen: !state.uiShellState.studioOpen,
+      },
+    })),
+  setActiveStudioTab: (tab) =>
+    set((state) => ({
+      uiShellState: { ...state.uiShellState, activeStudioTab: tab },
+    })),
   updateChatSettings: (patch) =>
     set((state) => ({
       studioState: {
         ...state.studioState,
-        chatSettings: { ...state.studioState.chatSettings, ...patch }
-      }
+        chatSettings: { ...state.studioState.chatSettings, ...patch },
+      },
     })),
-  setSelectedVoice: (voice) => set((state) => ({ studioState: { ...state.studioState, selectedVoice: voice } })),
-  setPodcastState: (phase) => set((state) => ({ studioState: { ...state.studioState, podcastGenerationState: phase } })),
+  setSelectedVoice: (voice) =>
+    set((state) => ({
+      studioState: { ...state.studioState, selectedVoice: voice },
+    })),
+  setPodcastState: (phase) =>
+    set((state) => ({
+      studioState: { ...state.studioState, podcastGenerationState: phase },
+    })),
   setPodcastOutput: ({ script, audioUrl, waveform }) =>
     set((state) => ({
       studioState: {
@@ -290,8 +382,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
         podcastScript: script,
         podcastAudioUrl: audioUrl,
         waveform,
-        podcastGenerationState: "complete"
-      }
+        podcastGenerationState: "complete",
+      },
     })),
   setAnswerSectionExpanded: (section, expanded) =>
     set((state) => ({
@@ -299,45 +391,84 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
         ...state.answerBoardState,
         expandedSections: {
           ...state.answerBoardState.expandedSections,
-          [section]: expanded
-        }
-      }
+          [section]: expanded,
+        },
+      },
     })),
-  setAnswerBoardHighlightedSource: (sourceId) => set((state) => ({ answerBoardState: { ...state.answerBoardState, highlightedSourceId: sourceId } })),
+  setAnswerBoardHighlightedSource: (sourceId) =>
+    set((state) => ({
+      answerBoardState: {
+        ...state.answerBoardState,
+        highlightedSourceId: sourceId,
+      },
+    })),
   setAnswerViewMode: (mode) =>
-    set((state) => ({ answerBoardState: { ...state.answerBoardState, viewMode: mode } })),
-  setGalleryCollapsed: (collapsed) => set((state) => ({ uiShellState: { ...state.uiShellState, galleryCollapsed: collapsed } })),
-  toggleGalleryCollapsed: () => set((state) => ({ uiShellState: { ...state.uiShellState, galleryCollapsed: !state.uiShellState.galleryCollapsed } })),
-  setSourceFilters: (filters) => set((state) => ({ documentsState: { ...state.documentsState, sourceFilters: filters } })),
-  setHistorySearchOpen: (open) => set((state) => ({ uiShellState: { ...state.uiShellState, historySearchOpen: open } })),
+    set((state) => ({
+      answerBoardState: { ...state.answerBoardState, viewMode: mode },
+    })),
+  setGalleryCollapsed: (collapsed) =>
+    set((state) => ({
+      uiShellState: { ...state.uiShellState, galleryCollapsed: collapsed },
+    })),
+  toggleGalleryCollapsed: () =>
+    set((state) => ({
+      uiShellState: {
+        ...state.uiShellState,
+        galleryCollapsed: !state.uiShellState.galleryCollapsed,
+      },
+    })),
+  setSourceFilters: (filters) =>
+    set((state) => ({
+      documentsState: { ...state.documentsState, sourceFilters: filters },
+    })),
+  setHistorySearchOpen: (open) =>
+    set((state) => ({
+      uiShellState: { ...state.uiShellState, historySearchOpen: open },
+    })),
 }));
 
 export const workspaceSelectors = {
   documents: (state: WorkspaceState) => state.documentsState.documents,
-  selectedDocumentIds: (state: WorkspaceState) => state.documentsState.selectedDocumentIds,
-  activeDocumentId: (state: WorkspaceState) => state.documentsState.activeDocumentId,
-  hoveredDocumentId: (state: WorkspaceState) => state.documentsState.hoveredDocumentId,
+  selectedDocumentIds: (state: WorkspaceState) =>
+    state.documentsState.selectedDocumentIds,
+  activeDocumentId: (state: WorkspaceState) =>
+    state.documentsState.activeDocumentId,
+  hoveredDocumentId: (state: WorkspaceState) =>
+    state.documentsState.hoveredDocumentId,
   nodes: (state: WorkspaceState) => state.sceneState.nodes,
   edges: (state: WorkspaceState) => state.sceneState.edges,
   messages: (state: WorkspaceState) => state.chatState.messages,
   draftPrompt: (state: WorkspaceState) => state.chatState.draftPrompt,
-  attachedDocumentIds: (state: WorkspaceState) => state.chatState.attachedDocumentIds,
+  attachedDocumentIds: (state: WorkspaceState) =>
+    state.chatState.attachedDocumentIds,
   chatSettings: (state: WorkspaceState) => state.studioState.chatSettings,
   studioState: (state: WorkspaceState) => state.studioState,
   sceneState: (state: WorkspaceState) => state.sceneState,
   uiShellState: (state: WorkspaceState) => state.uiShellState,
   answerBoardState: (state: WorkspaceState) => state.answerBoardState,
-  sourceFilters: (state: WorkspaceState) => state.documentsState.sourceFilters
+  sourceFilters: (state: WorkspaceState) => state.documentsState.sourceFilters,
 };
 
-export function getLatestAssistantMessage(messages: ChatMessageRecord[]): ChatMessageRecord | null {
-  return [...messages].reverse().find((message) => message.role === "assistant") ?? null;
+export function getLatestAssistantMessage(
+  messages: ChatMessageRecord[],
+): ChatMessageRecord | null {
+  return (
+    [...messages].reverse().find((message) => message.role === "assistant") ??
+    null
+  );
 }
 
-export function getAnswerTimeline(messages: ChatMessageRecord[]): ChatMessageRecord[] {
-  return messages.filter((message) => message.role === "assistant").slice(-4).reverse();
+export function getAnswerTimeline(
+  messages: ChatMessageRecord[],
+): ChatMessageRecord[] {
+  return messages
+    .filter((message) => message.role === "assistant")
+    .slice(-4)
+    .reverse();
 }
 
-export function getActiveVisualization(messages: ChatMessageRecord[]): AnswerVisualization | null {
+export function getActiveVisualization(
+  messages: ChatMessageRecord[],
+): AnswerVisualization | null {
   return getLatestAssistantMessage(messages)?.visualization ?? null;
 }
